@@ -1,6 +1,6 @@
 name: CI - Validate Docker Compose & YAML
 
-on:
+"on":
     push:
         branches:
             - "main"
@@ -37,7 +37,8 @@ jobs:
 
             - name: Install trufflehog
               run: |
-                  curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/v3.90.5/scripts/install.sh | sh
+                  curl -sSfL \
+                    https://raw.githubusercontent.com/trufflesecurity/trufflehog/v3.90.5/scripts/install.sh | sh
                   echo "$PWD/bin" >> "$GITHUB_PATH"
 
             - name: Scan for secrets
