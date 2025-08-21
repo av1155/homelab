@@ -22,7 +22,7 @@ services:
             # Firewall Rules
             - FIREWALL_OUTBOUND_SUBNETS=172.20.0.0/16,192.168.10.0/24
             - FIREWALL_VPN_INPUT_PORTS=6881,14439 # qBittorrent, and opened port from AirVPN (read README.txt)
-            #- FIREWALL_DEBUG=on
+            # - FIREWALL_DEBUG=on
         ports:
             - 8000:8000 # Gluetun HTTP Control Server
             - 9865:9865 # qBittorrent Web UI

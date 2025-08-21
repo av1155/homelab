@@ -1,7 +1,7 @@
 services:
     # MariaDB + phpMyAdmin
     mariadb:
-        image: mariadb:11.4 #LTS Long Time Support Until May 29, 2029
+        image: mariadb:11.4 # LTS Long Time Support Until May 29, 2029
         container_name: mariadb
         volumes:
             - /root/docker/database-stack/mariadb_phpmyadmin/mariadb/data:/var/lib/mysql:rw

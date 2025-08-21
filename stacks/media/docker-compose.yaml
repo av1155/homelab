@@ -90,10 +90,11 @@ services:
         user: 0:1000
         environment:
             - TZ=America/New_York
-        #     - BASE_PATH=/maintainerr # uncomment if you're serving maintainerr from a subdirectory
-        #     - UI_HOSTNAME=:: # uncomment if you want to listen on IPv6 instead (default 0.0.0.0)
-        #     - UI_PORT=6247 # uncomment to change the UI port (default 6246). Useful if you're on a network where the port is already in use
-        #     - API_PORT=3002 # uncomment to change the API port (default 3001). Useful if you're on a network where the port is already in use
+            # Uncomment and adjust if needed
+            # - BASE_PATH=/maintainerr         # serve from subdirectory
+            # - UI_HOSTNAME=::                 # listen on IPv6 (default 0.0.0.0)
+            # - UI_PORT=6247                   # change UI port (default 6246)
+            # - API_PORT=3002                  # change API port (default 3001)
         volumes:
             - /root/docker/media-stack/maintainerr/data:/opt/data
         restart: unless-stopped

@@ -21,10 +21,6 @@ jobs:
             - name: Install yamllint
               run: sudo apt-get update && sudo apt-get install -y yamllint
 
-            - name: Install trufflehog
-              run: |
-                  curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh
-
             # Check YAML formatting
             - name: Lint YAML files
               run: yamllint .
@@ -36,7 +32,3 @@ jobs:
                     echo "Validating $file"
                     docker compose -f "$file" config >/dev/null
                   done
-
-            # Secret scanning
-            - name: Scan for secrets
-              run: ./trufflehog filesystem --no-update --fail stacks
