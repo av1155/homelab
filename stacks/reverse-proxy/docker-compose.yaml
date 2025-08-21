@@ -1,0 +1,21 @@
+services:
+    nginx-proxy-manager:
+        container_name: nginx-proxy-manager
+        image: jc21/nginx-proxy-manager:latest
+        #image: jc21/nginx-proxy-manager:2.12.3
+        restart: unless-stopped
+        ports:
+            - 80:80 # HTTP
+            - 443:443 # HTTPS
+            - 81:81 # Admin UI
+
+            # Stream Ports
+            - 25:25 # SMTP
+            - 587:587 # SMTP Submission
+            - 993:993 # IMAP over SSL
+            - 995:995 # POP3 over SSL
+        environment:
+            - DISABLE_IPV6=true
+        volumes:
+            - /root/docker/reverse-proxy-stack/nginx-proxy-manager/data:/data
+            - /root/docker/reverse-proxy-stack/nginx-proxy-manager/letsencrypt:/etc/letsencrypt

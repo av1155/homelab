@@ -1,0 +1,35 @@
+services:
+    vaultwarden:
+        image: vaultwarden/server:latest
+        container_name: vaultwarden
+        restart: always
+        ports:
+            - "5151:80"
+        volumes:
+            - /root/docker/security-stack/vaultwarden/data:/data
+        environment:
+            - DOMAIN=${DOMAIN}
+            - SIGNUPS_ALLOWED=${SIGNUPS_ALLOWED}
+            - ADMIN_TOKEN=${VAULTWARDEN_ADMIN_TOKEN}
+            - UID=0
+            - GID=0
+
+    vaultwarden-backup:
+        image: bruceforce/vaultwarden-backup:latest
+        container_name: vaultwarden-backup
+        restart: always
+        depends_on:
+            - vaultwarden
+        volumes:
+            - /root/docker/security-stack/vaultwarden/data:/data:ro
+            - /root/docker/security-stack/vaultwarden/backup:/backup
+            - /etc/localtime:/etc/localtime:ro
+            - /etc/timezone:/etc/timezone:ro
+        environment:
+            - CRON_TIME=0 * * * * # every hour
+            - DELETE_AFTER=30 # keep backups for 30 days
+            - BACKUP_DIR=/backup
+            - TIMESTAMP=true
+            - ENCRYPTION_PASSWORD=${VW_BACKUP_PASSWORD}
+            - UID=0
+            - GID=0

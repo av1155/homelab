@@ -1,0 +1,60 @@
+services:
+    postgres:
+        image: postgres:17
+        container_name: postgres
+        volumes:
+            - /root/docker/kestra-stack/postgres:/var/lib/postgresql/data
+        environment:
+            POSTGRES_DB: kestra
+            POSTGRES_USER: "${POSTGRES_AUTH_USER}"
+            POSTGRES_PASSWORD: "${POSTGRES_AUTH_PASS}"
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
+            interval: 30s
+            timeout: 10s
+            retries: 10
+
+    kestra:
+        image: kestra/kestra:latest
+        container_name: kestra
+        pull_policy: always
+        # Note that this setup with a root user is intended for development purpose.
+        # Our base image runs without root, but the Docker Compose implementation needs root to access the Docker socket
+        user: "root"
+        command: server standalone
+        volumes:
+            - /root/docker/kestra-stack/kestra:/app/storage
+            - /var/run/docker.sock:/var/run/docker.sock
+            - /root/docker/kestra-stack/kestra/tmp:/tmp/kestra-wd
+        environment:
+            KESTRA_CONFIGURATION: |
+                datasources:
+                  postgres:
+                    url: jdbc:postgresql://postgres:5432/kestra
+                    driverClassName: org.postgresql.Driver
+                    username: "${POSTGRES_AUTH_USER}"
+                    password: "${POSTGRES_AUTH_PASS}"
+                kestra:
+                  server:
+                    basicAuth:
+                      enabled: false
+                      username: "${KESTRA_AUTH_USER_EMAIL}"
+                      password: "${KESTRA_AUTH_PASS}"
+                  repository:
+                    type: postgres
+                  storage:
+                    type: local
+                    local:
+                      basePath: "/app/storage"
+                  queue:
+                    type: postgres
+                  tasks:
+                    tmpDir:
+                      path: /tmp/kestra-wd/tmp
+                  url: http://localhost:8080/
+        ports:
+            - "8080:8080" # Kestra Web UI
+            - "8081:8081" # Kestra internal API
+        depends_on:
+            postgres:
+                condition: service_healthy

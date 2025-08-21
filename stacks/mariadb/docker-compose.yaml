@@ -1,0 +1,30 @@
+services:
+    # MariaDB + phpMyAdmin
+    mariadb:
+        image: mariadb:11.4 #LTS Long Time Support Until May 29, 2029
+        container_name: mariadb
+        volumes:
+            - /root/docker/database-stack/mariadb_phpmyadmin/mariadb/data:/var/lib/mysql:rw
+        environment:
+            - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+            - TZ=America/New_York
+        ports:
+            - 3306:3306
+        restart: on-failure:5
+
+    phpmyadmin:
+        image: phpmyadmin:latest
+        container_name: phpmyadmin
+        healthcheck:
+            test: curl -f http://localhost:80/ || exit 1
+        environment:
+            - PMA_PORT=3306
+            - PMA_HOST=${PMA_HOST}
+        volumes:
+            - /root/docker/database-stack/mariadb_phpmyadmin/phpmyadmin/uploads.ini:/usr/local/etc/php/conf.d/uploads.ini:rw
+            - /root/docker/database-stack/mariadb_phpmyadmin/phpmyadmin/config.user.inc.php:/etc/phpmyadmin/config.user.inc.php:ro
+        ports:
+            - 2500:80
+        depends_on:
+            - mariadb
+        restart: on-failure:5

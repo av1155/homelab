@@ -1,0 +1,174 @@
+services:
+    prowlarr:
+        image: ghcr.io/linuxserver/prowlarr:latest
+        container_name: prowlarr
+        network_mode: host
+        security_opt:
+            - apparmor=unconfined
+        environment:
+            - TZ=America/New_York
+        volumes:
+            - /root/docker/media-stack/prowlarr/config:/config
+        restart: unless-stopped
+
+    radarr:
+        image: ghcr.io/linuxserver/radarr:latest
+        container_name: radarr
+        network_mode: host
+        security_opt:
+            - apparmor=unconfined
+        environment:
+            - TZ=America/New_York
+            - PUID=0
+            - PGID=1000
+        volumes:
+            - /root/docker/media-stack/radarr/config:/config
+            - /mnt/nas-media/Movies:/movies
+            - /mnt/nas-media/Downloads:/downloads
+        restart: unless-stopped
+
+    sonarr:
+        image: ghcr.io/linuxserver/sonarr:latest
+        container_name: sonarr
+        network_mode: host
+        security_opt:
+            - apparmor=unconfined
+        environment:
+            - TZ=America/New_York
+            - PUID=0
+            - PGID=1000
+        volumes:
+            - /root/docker/media-stack/sonarr/config:/config
+            - /mnt/nas-media/TV Shows:/tv
+            - /mnt/nas-media/Downloads:/downloads
+        restart: unless-stopped
+
+    plex:
+        image: ghcr.io/linuxserver/plex:latest
+        container_name: plex
+        network_mode: host
+        healthcheck:
+            test: wget --no-verbose --tries=1 --spider http://localhost:32400/web
+        devices:
+            - /dev/dri:/dev/dri
+        environment:
+            - TZ=America/New_York
+            - VERSION=docker
+            - PUID=0
+            - PGID=108
+            # - PLEX_CLAIM=your_claim_token
+        privileged: true
+        security_opt:
+            - apparmor=unconfined
+        volumes:
+            - /root/docker/media-stack/plex:/config
+            - /mnt/nas-media:/media
+            - /dev/shm/plex_transcode:/ram-transcode
+            - /mnt/plex-nfs-transcode:/nfs-transcode
+        restart: unless-stopped
+
+    overseerr:
+        image: sctx/overseerr:latest
+        container_name: overseerr
+        network_mode: host
+        security_opt:
+            - apparmor=unconfined
+        environment:
+            - TZ=America/New_York
+            - PUID=0
+            - PGID=1000
+        volumes:
+            - /root/docker/media-stack/overseerr/config:/app/config
+        restart: unless-stopped
+
+    maintainerr:
+        image: ghcr.io/jorenn92/maintainerr:latest
+        container_name: maintainerr
+        network_mode: host
+        security_opt:
+            - apparmor=unconfined
+        user: 0:1000
+        environment:
+            - TZ=America/New_York
+        #     - BASE_PATH=/maintainerr # uncomment if you're serving maintainerr from a subdirectory
+        #     - UI_HOSTNAME=:: # uncomment if you want to listen on IPv6 instead (default 0.0.0.0)
+        #     - UI_PORT=6247 # uncomment to change the UI port (default 6246). Useful if you're on a network where the port is already in use
+        #     - API_PORT=3002 # uncomment to change the API port (default 3001). Useful if you're on a network where the port is already in use
+        volumes:
+            - /root/docker/media-stack/maintainerr/data:/opt/data
+        restart: unless-stopped
+
+    tdarr:
+        image: ghcr.io/haveagitgat/tdarr:latest
+        container_name: tdarr
+        network_mode: host
+        restart: unless-stopped
+        environment:
+            - TZ=America/New_York
+            - PUID=0
+            - PGID=1000
+            - UMASK_SET=002
+            - serverIP=0.0.0.0
+            - serverPort=8266
+            - webUIPort=8265
+            - internalNode=true
+            - inContainer=true
+            - ffmpegVersion=7
+            - nodeName=internal-node
+            - auth=false
+            - openBrowser=true
+            - maxLogSizeMB=10
+        volumes:
+            - /root/docker/media-stack/tdarr/server:/app/server
+            - /root/docker/media-stack/tdarr/configs:/app/configs
+            - /root/docker/media-stack/tdarr/logs:/app/logs
+            - /mnt/nas-media:/media
+            - /mnt/tdarr-cache:/temp
+        devices:
+            - /dev/dri:/dev/dri
+        security_opt:
+            - apparmor=unconfined
+        privileged: true
+
+    recyclarr:
+        image: ghcr.io/recyclarr/recyclarr:latest
+        container_name: recyclarr
+        security_opt:
+            - apparmor=unconfined
+        user: "0:0"
+        environment:
+            - TZ=America/New_York
+        volumes:
+            - /root/docker/media-stack/recyclarr/config:/config
+        restart: unless-stopped
+
+    flaresolverr:
+        image: 21hsmw/flaresolverr:nodriver
+        container_name: flaresolverr
+        security_opt:
+            - apparmor=unconfined
+        environment:
+            - LOG_LEVEL=${LOG_LEVEL:-info}
+            - LOG_HTML=${LOG_HTML:-false}
+            - CAPTCHA_SOLVER=${CAPTCHA_SOLVER:-none}
+            - TZ=America/New_York
+            - DRIVER=${DRIVER:-nodriver}
+        ports:
+            - "${PORT:-8191}:8191"
+        restart: unless-stopped
+
+    metube:
+        container_name: metube
+        image: ghcr.io/alexta69/metube
+        restart: unless-stopped
+        security_opt:
+            - apparmor=unconfined
+        ports:
+            - 8083:8081
+        environment:
+            - TZ=America/New_York
+            - PUID=0
+            - PGID=1000
+            - DELETE_FILE_ON_TRASHCAN=true
+        volumes:
+            - /mnt/nas-media/YouTube:/downloads

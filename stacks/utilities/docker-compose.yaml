@@ -1,0 +1,73 @@
+services:
+    uptimekuma:
+        container_name: uptimekuma
+        image: louislam/uptime-kuma:latest
+        restart: always
+        ports:
+            - 3001:3001
+        environment:
+            - TZ=America/New_York
+        volumes:
+            - /root/docker/utilities-stack/uptimekuma:/app/data
+            - /var/run/docker.sock:/var/run/docker.sock
+
+    dozzle:
+        container_name: dozzle
+        image: amir20/dozzle:latest
+        restart: always
+        ports:
+            - 8083:8080
+        environment:
+            - DOZZLE_ENABLE_ACTIONS=true
+            - DOZZLE_AUTH_PROVIDER=simple
+            - DOZZLE_REMOTE_AGENT=${DOZZLE_REMOTE_AGENT}
+        # "Paused" remote agents:
+        #   ct-database-ip:7007
+        #   ct-kestra-ip:7007
+        #   ct-dokploy-ip:7007
+        volumes:
+            - /var/run/docker.sock:/var/run/docker.sock
+            - /root/docker/utilities-stack/dozzle:/data
+
+    it-tools:
+        container_name: it-tools
+        image: corentinth/it-tools:latest
+        restart: unless-stopped
+        ports:
+            - 8080:80
+
+    libretranslate:
+        container_name: libretranslate
+        image: libretranslate/libretranslate:latest
+        restart: unless-stopped
+        ports:
+            - 5000:5000
+        environment:
+            - LT_INSTANCE_NAME=ProxmoxLibre
+            - LT_LOAD_ONLY=bn,zh,zt,nl,en,fr,de,hi,id,it,ja,ko,ms,pl,pt,ru,es,tr
+
+    openspeedtest:
+        container_name: openspeedtest
+        image: openspeedtest/latest:latest
+        restart: unless-stopped
+        ports:
+            - 8081:3000 # Web UI (HTTP)
+            - 8443:3001 # Web UI (HTTPS, optional)
+        environment:
+            - ENABLE_LETSENCRYPT=True
+            - DOMAIN_NAME=openspeedtest.andreaventi.com
+            - USER_EMAIL=contact@andreaventi.com
+
+    peanut:
+        container_name: peanut
+        image: brandawg93/peanut:latest
+        restart: unless-stopped
+        ports:
+            - 8082:8080
+        environment:
+            - WEB_PORT=8080
+            - WEB_USERNAME=${PEANUT_WEB_USERNAME}
+            - WEB_PASSWORD=${PEANUT_WEB_PASSWORD}
+            - AUTH_SECRET=${PEANUT_AUTH_SECRET}
+        volumes:
+            - /root/docker/utilities-stack/peanut/config:/config
