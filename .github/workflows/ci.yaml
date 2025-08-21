@@ -2,9 +2,11 @@ name: CI - Validate Docker Compose & YAML
 
 on:
     push:
-        branches: ["main"]
+        branches:
+            - "main"
     pull_request:
-        branches: ["main"]
+        branches:
+            - "main"
 
 jobs:
     validate:
@@ -32,3 +34,12 @@ jobs:
                     echo "Validating $file"
                     docker compose -f "$file" config >/dev/null
                   done
+
+            # Install trufflehog
+            - name: Install trufflehog
+              run: |
+                  curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/v3.83.7/scripts/install.sh | sh
+
+            # Secret scanning (fail on findings)
+            - name: Scan for secrets
+              run: ./trufflehog filesystem --no-update --fail stacks
