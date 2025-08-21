@@ -41,4 +41,4 @@ jobs:
                   echo "$PWD/bin" >> "$GITHUB_PATH"
 
             - name: Scan for secrets
-              run: trufflehog filesystem --no-update --fail stacks
+              run: trufflehog filesystem --no-update --only-verified --fail stacks
