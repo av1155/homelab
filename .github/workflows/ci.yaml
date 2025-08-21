@@ -35,11 +35,10 @@ jobs:
                     docker compose -f "$f" config --no-interpolate >/dev/null
                   done
 
-            # Install trufflehog
             - name: Install trufflehog
               run: |
-                  curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/v3.83.7/scripts/install.sh | sh
+                  curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/v3.90.5/scripts/install.sh | sh
+                  echo "$PWD/bin" >> "$GITHUB_PATH"
 
-            # Secret scanning (fail on findings)
             - name: Scan for secrets
-              run: ./trufflehog filesystem --no-update --fail stacks
+              run: trufflehog filesystem --no-update --fail stacks
