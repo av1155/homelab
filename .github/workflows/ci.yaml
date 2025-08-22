@@ -135,6 +135,17 @@ jobs:
               run: |
                   set -euo pipefail
                   > images.txt
+                  # Check if any docker-compose.yaml files exist
+                  if ! find stacks -name "docker-compose.yaml" | grep -q .; then
+                    # No compose files found, set count to 0 and exit early
+                    echo "No docker-compose.yaml files found."
+                    echo "count=0" >> "$GITHUB_OUTPUT"
+                    echo "## 📦 Image Inventory" >> "$GITHUB_STEP_SUMMARY"
+                    echo "- Total images: \`0\`" >> "$GITHUB_STEP_SUMMARY"
+                    echo "" >> "$GITHUB_STEP_SUMMARY"
+                    echo "### Preview (up to 10 images)" >> "$GITHUB_STEP_SUMMARY"
+                    exit 0
+                  fi
                   while IFS= read -r -d '' f; do
                     yq -r '.services[]? | .image? // ""' "$f"
                   done < <(find stacks -name "docker-compose.yaml" -print0) \
