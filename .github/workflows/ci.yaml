@@ -4,9 +4,9 @@ on:
     push:
         branches: ["**"]
     pull_request:
-        branches: ["main"]
+        branches: ["**"]
     schedule:
-        - cron: "0 3 * * *" # Nightly security runs at 03:00 UTC
+        - cron: "0 14 * * *" # Nightly security runs at 14:00 UTC
     workflow_dispatch:
 
 permissions:
@@ -113,7 +113,7 @@ jobs:
                   echo "- Compose config ✅" >> "$GITHUB_STEP_SUMMARY"
 
     security_images:
-        name: Security scan (images + SBOM)
+        name: Security scan (images only)
         runs-on: ubuntu-latest
         steps:
             - name: Checkout repo
@@ -131,7 +131,6 @@ jobs:
                   set -euo pipefail
                   > images.txt
                   while IFS= read -r -d '' f; do
-                    # Use null-safe traversal and default to empty string
                     yq -r '.services[]? | .image? // ""' "$f"
                   done < <(find stacks -name "docker-compose.yaml" -print0) \
                     | grep -v '^$' \
@@ -141,7 +140,7 @@ jobs:
                   cat images.txt || true
 
                   count=$(wc -l < images.txt | xargs)
-                  : "${count:=0}"  # ensure count is defined even if file is empty
+                  : "${count:=0}"
                   echo "count=$count" >> "$GITHUB_OUTPUT"
 
                   echo "## Image Inventory" >> "$GITHUB_STEP_SUMMARY"
@@ -154,11 +153,7 @@ jobs:
               run: |
                   curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
 
-            - name: Install Syft (SBOM)
-              run: |
-                  curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sudo sh -s -- -b /usr/local/bin
-
-            - name: Scan images with Trivy (CRITICAL)
+            - name: Scan images with Trivy (CRITICAL only)
               if: steps.collect.outputs.count != '0'
               shell: bash
               run: |
@@ -171,35 +166,15 @@ jobs:
                     echo "::endgroup::"
                   done < images.txt
                   if (( failed )); then
-                    echo "One or more images have CRITICAL/HIGH vulnerabilities."
+                    echo "One or more images have CRITICAL vulnerabilities."
                     exit 1
                   fi
-
-            - name: Generate SBOMs with Syft
-              if: steps.collect.outputs.count != '0'
-              shell: bash
-              run: |
-                  set -euo pipefail
-                  mkdir -p sbom
-                  while read -r img; do
-                    out="sbom/$(echo "$img" | tr '/:' '__').spdx.json"
-                    echo "SBOM -> $out"
-                    syft "$img" -o spdx-json > "$out"
-                  done < images.txt
-
-            - name: Upload SBOMs
-              if: steps.collect.outputs.count != '0'
-              uses: actions/upload-artifact@v4
-              with:
-                  name: sbom
-                  path: sbom
 
             - name: Summary
               if: always()
               run: |
-                  echo "### Security (images + SBOM)" >> "$GITHUB_STEP_SUMMARY"
+                  echo "### Security (images)" >> "$GITHUB_STEP_SUMMARY"
                   echo "- Trivy image scan: **completed**" >> "$GITHUB_STEP_SUMMARY"
-                  echo "- SBOMs: **uploaded** as artifact \`sbom\`" >> "$GITHUB_STEP_SUMMARY"
 
     security_secrets:
         name: Security scan (secrets)
@@ -240,6 +215,16 @@ jobs:
             - name: Lint GitHub workflows (actionlint)
               run: |
                   actionlint -color -shellcheck= -pyflakes=
+
+            - name: Set up Node
+              uses: actions/setup-node@v4
+              with:
+                  node-version: "20"
+
+            - name: Install markdownlint preset provider
+              run: |
+                  if [ ! -f package.json ]; then npm init -y >/dev/null 2>&1; fi
+                  npm i -D markdownlint@latest
 
             - name: Lint README (markdownlint)
               uses: DavidAnson/markdownlint-cli2-action@v16
