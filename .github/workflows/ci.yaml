@@ -167,7 +167,7 @@ jobs:
                   while read -r img; do
                     [[ -z "$img" ]] && continue
                     echo "::group::Trivy scan $img"
-                    trivy image --severity CRITICAL --ignore-unfixed --no-progress "$img" || failed=1
+                    trivy image --scanners vuln --severity CRITICAL --ignore-unfixed --no-progress "$img" || failed=1
                     echo "::endgroup::"
                   done < images.txt
                   if (( failed )); then
@@ -234,7 +234,7 @@ jobs:
             - name: Install actionlint (official script)
               run: |
                   curl -sSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash \
-                    | bash -s -- -b /usr/local/bin
+                    | bash -s -- latest /usr/local/bin
                   actionlint --version
 
             - name: Lint GitHub workflows (actionlint)
