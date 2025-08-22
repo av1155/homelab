@@ -9,7 +9,6 @@ on:
         - cron: "0 3 * * *" # Nightly security runs at 03:00 UTC
     workflow_dispatch:
 
-# Default minimal permissions; override per-job when needed
 permissions:
     contents: read
 
@@ -132,17 +131,24 @@ jobs:
                   set -euo pipefail
                   > images.txt
                   while IFS= read -r -d '' f; do
-                    yq -r '.services[].image // empty' "$f"
-                  done < <(find stacks -name "docker-compose.yaml" -print0) | sort -u > images.txt
+                    # Use null-safe traversal and default to empty string
+                    yq -r '.services[]? | .image? // ""' "$f"
+                  done < <(find stacks -name "docker-compose.yaml" -print0) \
+                    | grep -v '^$' \
+                    | sort -u > images.txt
 
                   echo "Images found:"
                   cat images.txt || true
 
                   count=$(wc -l < images.txt | xargs)
+                  : "${count:=0}"  # ensure count is defined even if file is empty
                   echo "count=$count" >> "$GITHUB_OUTPUT"
 
                   echo "## Image Inventory" >> "$GITHUB_STEP_SUMMARY"
                   echo "- Total images: \`$count\`" >> "$GITHUB_STEP_SUMMARY"
+                  echo "" >> "$GITHUB_STEP_SUMMARY"
+                  echo "### Preview (up to 10 images)" >> "$GITHUB_STEP_SUMMARY"
+                  head -n 10 images.txt | sed 's/^/- /' >> "$GITHUB_STEP_SUMMARY" || true
 
             - name: Install Trivy (CLI)
               run: |
@@ -159,6 +165,7 @@ jobs:
                   set -euo pipefail
                   failed=0
                   while read -r img; do
+                    [[ -z "$img" ]] && continue
                     echo "::group::Trivy scan $img"
                     trivy image --severity CRITICAL --ignore-unfixed --no-progress "$img" || failed=1
                     echo "::endgroup::"
@@ -224,8 +231,15 @@ jobs:
             - name: Checkout repo
               uses: actions/checkout@v4
 
+            - name: Install actionlint (official script)
+              run: |
+                  curl -sSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash \
+                    | bash -s -- -b /usr/local/bin
+                  actionlint --version
+
             - name: Lint GitHub workflows (actionlint)
-              uses: rhysd/actionlint@v1
+              run: |
+                  actionlint -color -shellcheck= -pyflakes=
 
             - name: Lint README (markdownlint)
               uses: DavidAnson/markdownlint-cli2-action@v16
