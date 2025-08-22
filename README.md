@@ -1,207 +1,165 @@
-# Homelab – Infrastructure Overview
+# Homelab – Cloud-Inspired Infrastructure
 
-I operate a **production-grade, cloud-inspired homelab** designed for **high availability, automation, and resilience**. It demonstrates practical expertise in building and maintaining modern infrastructure with **Proxmox, Kubernetes, Docker, ZFS, and GitOps workflows**. All services and stacks are defined as code, ensuring full reproducibility and enabling transparent review of my practices.
+> **TL;DR:**
+> This homelab is a **production-like environment** designed for **high availability, automation, observability, and resilience**.
+> It demonstrates hands-on experience with **Proxmox clustering, Kubernetes, Docker, GitOps, CI/CD, Cloudflare Zero Trust, backups, and monitoring**.
+> All services are defined as code in this repo.
 
-## Skills Snapshot
+This project is my **personal lab** and represents the real-world DevOps/SRE skills I bring:
+
+- Automating deployments with **GitOps & CI/CD**
+- Designing for **high availability and disaster recovery**
+- Operating **secure, cloud-centric infrastructure**
+- Building **observable, scalable, reproducible systems**
+
+---
+
+## 🚀 Skills Snapshot
 
 - **Infrastructure & Clustering** – Proxmox HA, Kubernetes, Docker, ZFS, Synology NAS
-- **Automation & CI/CD** – GitOps, GitHub Actions, Portainer Stacks, Dokploy
-- **Observability & Ops** – Uptime Kuma, Dozzle, Kestra (workflow orchestration)
+- **Automation & IaC** – GitOps, GitHub Actions, Portainer Stacks, Dokploy, (planned: Terraform modules for Cloudflare/AWS)
+- **Observability & Ops** – Uptime Kuma, Dozzle, Kestra, (planned: Prometheus + Grafana)
 - **Networking & Security** – Cloudflare Zero Trust, VLANs, WireGuard VPN, firewalls
-- **Backup & DR** – ZFS replication, multi-tier NAS + cloud backups
+- **Backup & DR** – ZFS replication, NAS + cloud sync, Cloudflare R2 object storage
 
-![Homepage Dashboard](images/Homelab.jpeg)
+---
 
+## 🖥️ Compute & Clustering
+
+- **Proxmox 2-node HA cluster** with Raspberry Pi quorum device
+- **Automated failover** (<3 min downtime) + **ZFS replication** (<15 min data loss)
+- **Workload separation**:
+
+    - **LXCs** → lightweight Dockerized services (Portainer managed)
+    - **VMs** → Kubernetes cluster (1 master + 3 workers) for orchestration practice
+
+_Proxmox Dashboard:_
 ![Proxmox Cluster Overview](images/Proxmox.jpeg)
 
 ---
 
-## Compute & Clustering
+## ⚙️ Deployment & Automation
 
-- **Proxmox 2-node HA cluster** with quorum device:
+- **GitOps with Portainer**
 
-    - Intel NUC 12 (i5-1240P, SSD + NVMe/ZFS)
-    - Intel NUC 11 (i5-1145G7, SSD + NVMe/ZFS)
-    - Raspberry Pi 5 (8GB RAM, NVMe) as **QDevice** and secondary service host.
+    - Stacks reconciled directly from GitHub
+    - GitHub Actions: linting, Compose validation, secret scanning (TruffleHog)
+    - Host-level secret injection (no secrets in Git)
 
-- **HA groups & replication**:
+- **CI/CD with Dokploy**
 
-    - Automated failover with <3 min downtime.
-    - ZFS replication between nodes reduces data loss to <15 minutes.
-    - NUC 11 prioritizes Kubernetes VMs (1 master + 3 workers).
-    - NUC 12 prioritizes LXC workloads running Docker stacks managed by Portainer.
+    - Webhook-triggered builds for apps/sites
+    - Automated provisioning, scaling, DB backups to Cloudflare R2
 
-- **Workload strategy**:
+- **Workflow & Automation Tools**
 
-    - **LXCs** for lightweight, reproducible Dockerized services.
-    - **VMs** for Kubernetes experimentation and production-grade orchestration.
-
----
-
-## Deployment & Automation
-
-- **Portainer GitOps**:
-
-    - Stacks reconciled directly from GitHub.
-    - CI/CD pipeline with GitHub Actions enforces linting, Compose validation, and secret scanning (TruffleHog).
-    - Host-level secret injection for reproducibility without exposing sensitive data.
-
-- **Dokploy**:
-
-    - GitHub webhook-triggered builds for websites and applications.
-    - Automated provisioning, scaling, and database backups.
-    - Config/state backups to Cloudflare R2 for DR readiness.
-
-- **Supporting ecosystem**:
-
-    - **Kestra** – workflow orchestration & automation.
-    - **Dozzle** – real-time log streaming.
-    - **Uptime Kuma** – monitoring & alerting.
-    - **Vaultwarden** – secrets management + automated encrypted backups.
+    - **Kestra** – workflow orchestration
+    - **Dozzle** – real-time container logs
+    - **Uptime Kuma** – black-box monitoring + alerting
+    - **Vaultwarden** – secrets vault + encrypted backups
 
 ---
 
-## Networking & Security
+## 🌐 Networking & Security
 
-- **Ubiquiti UniFi Express 7 router** + **2.5GbE managed switch** with VLAN segmentation.
-- **Cloudflare integration**:
+- **Ubiquiti UniFi Express 7 router** + 2.5GbE managed switch (VLAN segmentation)
+- **Cloudflare Integration**
 
-    - External services are proxied through Cloudflare, hiding my home IP while providing caching, optimization, and DDoS protection.
-    - Cloudflare Zero Trust policies applied for per‑service identity‑based access.
-    - Automated TLS management via Cloudflare API.
+    - All external services proxied through Cloudflare (DDoS protection, TLS, Zero Trust)
+    - Automated certificate management via Cloudflare API
 
-- **Ingress & DNS**:
-
-    - Nginx Proxy Manager for internal routing and cert management.
-    - Dual **AdGuard Home** instances (Proxmox LXC + Raspberry Pi) for DNS filtering and redundancy.
-
-- **Remote access**:
-
-    - WireGuard VPN for encrypted external access.
-    - Strict firewall rules with service-specific port whitelisting.
+- **Ingress & DNS** – Nginx Proxy Manager, dual AdGuard Home DNS servers
+- **Remote Access** – WireGuard VPN, strict firewall + per-service port rules
 
 ---
 
-## Storage & Backup
+## 💾 Storage & Backups
 
-- **ZFS-backed NVMe storage** on each node for snapshots, replication, and HA.
-- **Synology DS423+ NAS** (2×12TB HDD in SHR + dual NVMe SSD cache/volume):
+- **ZFS NVMe pools** on each node → snapshots + HA replication
+- **Synology DS423+ NAS** (2×12TB HDD SHR + dual NVMe SSD)
 
-    - NFS mounts for large media and raw storage.
+    - NFS for large media / raw storage
     - Multi-tier backup pipeline:
 
         1. Proxmox snapshots → NAS
-        2. NAS → Cloud (Google Drive/OneDrive) + local SSD
+        2. NAS → Cloud (Google Drive / OneDrive) + local SSD
 
-    - Enables one-click recovery of VMs and LXCs.
+- **Cloudflare R2** → app/DB backup storage
 
-- **NVMe read cache** accelerates hot workloads.
-
----
-
-## Design Principles
-
-- **Cloud-centric architecture**: Designed locally, but mirrors enterprise HA/DR best practices.
-- **Resilient by default**: ZFS snapshots, replication, automated failover.
-- **Security-first**: VLAN isolation, Cloudflare Zero Trust, VPN-only ingress, least-privilege firewall rules.
-- **Efficient resource use**: LXCs for light workloads, VMs for Kubernetes education and orchestration.
-- **Scalable & automated**: GitOps-driven deployments, webhook-triggered CI/CD, and multi-layered backups.
+_Homelab Dashboard:_
+![Homepage Dashboard](images/Homelab.jpeg)
 
 ---
 
-## Outcome
+## 📊 Design Principles
 
-This homelab showcases my ability to:
-
-- Design and operate **highly available, production-like infrastructure**.
-- Apply **modern DevOps practices** (GitOps, CI/CD, IaC, observability).
-- Manage **secure, automated, and reproducible deployments** at scale.
-- Integrate **backup, monitoring, and orchestration** into a cohesive, cloud-grade system.
-
-It reflects the **hands-on engineering mindset** required of Site Reliability and DevOps Engineers: building systems that are **resilient, automated, observable, and secure**—not just theoretically, but in practice.
+- **Resilient by default** – HA cluster, replication, automated failover
+- **Security-first** – VLAN isolation, Zero Trust, VPN ingress, firewall rules
+- **Cloud-centric** – mirrors enterprise HA/DR patterns, integrates with Cloudflare + cloud storage
+- **Scalable & automated** – GitOps, CI/CD, webhook builds, auto-updates
 
 ---
 
-## Service & Stack Reference (Detailed)
+## 🏁 Outcomes
 
-<details>
-<summary>Click to expand</summary>
+This homelab proves I can:
+
+- Build and operate **production-like infrastructure**
+- Apply **modern DevOps practices** (GitOps, CI/CD, IaC, observability)
+- Secure and monitor complex systems with **alerts, logs, and dashboards**
+- Manage **resilient deployments** with disaster recovery baked in
+
+It reflects the **engineering mindset** needed in Site Reliability / DevOps: systems that are **resilient, observable, automated, and secure**.
+
+---
+
+## Services & Stacks
+
+Here’s a quick overview (full configs in [`stacks/`](stacks/)):
+
+| Stack             | Services (examples)                                          | Purpose / Keywords                         |
+| ----------------- | ------------------------------------------------------------ | ------------------------------------------ |
+| **dns**           | AdGuard Home, adguardhome-sync                               | DNS filtering, redundancy                  |
+| **reverse-proxy** | Nginx Proxy Manager                                          | TLS, ingress, Cloudflare API integration   |
+| **wireguard**     | WG-Easy                                                      | VPN server, secure remote access           |
+| **utilities**     | Uptime Kuma, Dozzle, IT-Tools, LibreTranslate, OpenSpeedTest | Monitoring, logs, internal tooling         |
+| **vaultwarden**   | Vaultwarden + backup                                         | Secrets mgmt, encrypted scheduled backups  |
+| **media**         | Plex, Sonarr, Radarr, Overseerr, Prowlarr, Tdarr, Recyclarr  | Media automation, GPU/VA-API transcoding   |
+| **media-vpn**     | Gluetun, qBittorrent                                         | VPN-protected egress, health-gated startup |
+| **mariadb**       | MariaDB, phpMyAdmin                                          | Relational DB + admin UI                   |
+| **kestra**        | Kestra, Postgres                                             | Workflow orchestration, job automation     |
+| **openweb-ui**    | OpenWeb-UI, SearxNG                                          | Local LLM interface + meta search          |
+| **homepage**      | getHomepage                                                  | Single-pane dashboard                      |
+
+---
+
+## Planned Additions
+
+- **Infrastructure as Code** – Terraform modules (Cloudflare + AWS RDS/S3)
+- **Observability Stack** – Prometheus + Grafana + Loki demo deployment
+
+---
+
+## Repo Structure
 
 ```
 stacks/
-  ├── dns/                     # DNS + config sync
-  │   ├── docker-compose.yaml  # adguardhome, adguardhome-sync
-  │   └── stack.env.example
-  │
-  ├── homepage/                # Homelab dashboard
-  │   ├── docker-compose.yaml  # homepage
-  │   └── stack.env.example
-  │
-  ├── kestra/                  # Workflow orchestration
-  │   ├── docker-compose.yaml  # postgres, kestra
-  │   └── stack.env.example
-  │
-  ├── mariadb/                 # Relational DB + admin
-  │   ├── docker-compose.yaml  # mariadb, phpmyadmin
-  │   └── stack.env.example
-  │
-  ├── media/                   # Media apps
-  │   ├── docker-compose.yaml  # prowlarr, radarr, sonarr, plex, overseerr, maintainerr, tdarr, recyclarr, flaresolverr, metube
-  │   └── stack.env.example
-  │
-  ├── media-vpn/               # VPN-protected downloads
-  │   ├── docker-compose.yaml  # gluetun, qbittorrent, deunhealth
-  │   └── stack.env.example
-  │
-  ├── openweb-ui/              # Local LLM UI + meta search
-  │   ├── docker-compose.yaml  # open-webui, searxng
-  │   └── stack.env.example
-  │
-  ├── reverse-proxy/           # Public reverse proxy
-  │   └── docker-compose.yaml  # nginx-proxy-manager
-  │
-  ├── utilities/               # Tools & monitoring
-  │   ├── docker-compose.yaml  # uptimekuma, dozzle, it-tools, libretranslate, openspeedtest, peanut
-  │   └── stack.env.example
-  │
-  ├── vaultwarden/             # Password manager + backups
-  │   ├── docker-compose.yaml  # vaultwarden, vaultwarden-backup
-  │   └── stack.env.example
-  │
-  └── wireguard/               # VPN server
-      ├── docker-compose.yaml  # wg-easy
-      └── stack.env.example
+  ├── dns/               # DNS stack
+  ├── media/             # Plex + automation
+  ├── media-vpn/         # VPN-protected egress
+  ├── reverse-proxy/     # Nginx Proxy Manager
+  ├── utilities/         # Monitoring & tools
+  ├── vaultwarden/       # Secrets vault + backup
+  ├── wireguard/         # VPN
+  ├── kestra/            # Workflow orchestration
+  ├── mariadb/           # Database stack
+  ├── openweb-ui/        # Local LLM + search
+  └── homepage/          # Dashboard
 ```
 
-- Each directory = one **stack** (a set of related services).
+Each directory includes:
+
+- `docker-compose.yaml` – services & configs
+- `stack.env.example` – reproducible environment variables
 
 ---
-
-- **dns/** – _AdGuard Home + adguardhome-sync_: network-wide DNS filtering, policy replication, and API-driven config.
-- **reverse-proxy/** – _Nginx Proxy Manager_: HTTP(S) ingress, TLS via Cloudflare API, stream (SMTP/IMAP/POP3) proxying.
-- **wireguard/** – _WG‑Easy_: secure remote access, opinionated defaults, audited iptables rules.
-- **utilities/** – _Uptime Kuma, Dozzle, IT‑Tools, LibreTranslate, OpenSpeedTest, Peanut_:
-
-    - **Uptime Kuma**: black‑box monitoring & alerting.
-    - **Dozzle**: live container logs; remote agents for multi‑node visibility.
-    - **Peanut**: tunnel / remote access UI with auth.
-    - **LibreTranslate** + **OpenSpeedTest** + **IT‑Tools**: internal tooling surface.
-
-- **homepage/** – _getHomepage_: single-pane-of-glass dashboard sourced from environment variables and APIs.
-- **media/** – _Prowlarr, Radarr, Sonarr, Plex, Overseerr, Maintainerr, Tdarr, Recyclarr, FlareSolverr, MeTube_:
-
-    - Shows **event‑driven automation**, **GPU/VA‑API transcoding**, shared NFS volumes, and service-to-service auth keys.
-
-- **media-vpn/** – _Gluetun + qBittorrent + Deunhealth_: policy‑routed egress behind WireGuard, health‑gated app start.
-- **mariadb/** – _MariaDB + phpMyAdmin_: stateful services separated from app stacks; custom ini/config mounts.
-- **vaultwarden/** – _Vaultwarden + backup_: secrets vault + scheduled encrypted backups (retention, timestamping).
-- **kestra/** – _Kestra + Postgres_: workflow orchestration with externalized DB, healthchecks, and ephemeral workdirs.
-- **openweb-ui/** – _Open‑WebUI + SearxNG_: local LLM UI and meta search; host socket isolation and bind‑mounted data.
-
-**Secrets & Config Strategy**
-
-- Code & Compose in Git; **`stack.env.example`** committed for reproducibility.
-- Real secrets injected at the **Portainer host/stack level** (and/or Vaultwarden), not stored in Git.
-- CI enforces YAML style, Compose validity, and **verified** secret scanning.
-
-</details>
