@@ -226,6 +226,7 @@ jobs:
         steps:
             - name: Checkout repo
               uses: actions/checkout@v4
+
             - name: Install actionlint (official script)
               run: |
                   curl -sSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash \
@@ -235,37 +236,47 @@ jobs:
             - name: Lint GitHub workflows (actionlint)
               run: actionlint -color -shellcheck= -pyflakes= 2>&1 | tee actionlint.log
 
+            # Needed so ".markdownlint.json" can `extends: "markdownlint/style/prettier"`
             - name: Set up Node
               uses: actions/setup-node@v4
               with:
                   node-version: "20"
-            - name: Install markdownlint preset provider
+
+            - name: Install markdownlint
               run: |
                   if [ ! -f package.json ]; then npm init -y >/dev/null 2>&1; fi
-                  npm i -D markdownlint@latest
+                  npm i -D markdownlint@0.38.0
 
             - name: Lint README (markdownlint)
+              id: markdownlint
               uses: DavidAnson/markdownlint-cli2-action@v16
               with:
                   globs: README.md
                   config: .markdownlint.json
               continue-on-error: true
 
+            - name: Capture markdownlint status
+              if: always()
+              run: echo "${{ steps.markdownlint.outcome == 'success' && 0 || 1 }}" > markdownlint.status
+
             - name: Summary
               if: always()
+              shell: bash
               run: |
                   echo "### 📝 Meta Lint" >> "$GITHUB_STEP_SUMMARY"
                   if [[ "${{ job.status }}" == "success" ]]; then
                     echo "- actionlint ✅" >> "$GITHUB_STEP_SUMMARY"
-                    echo "- markdownlint ✅" >> "$GITHUB_STEP_SUMMARY"
+                    if [[ -f markdownlint.status && "$(cat markdownlint.status)" == "0" ]]; then
+                      echo "- markdownlint ✅" >> "$GITHUB_STEP_SUMMARY"
+                    else
+                      echo "- markdownlint ❌" >> "$GITHUB_STEP_SUMMARY"
+                    fi
                   else
                     echo "- Linting ❌" >> "$GITHUB_STEP_SUMMARY"
-                    for f in actionlint.log markdownlint.log; do
-                      if [[ -f $f ]]; then
-                        echo "" >> "$GITHUB_STEP_SUMMARY"
-                        echo "<details><summary>${f} (last lines)</summary>" >> "$GITHUB_STEP_SUMMARY"
-                        tail -n 10 "$f" >> "$GITHUB_STEP_SUMMARY"
-                        echo "</details>" >> "$GITHUB_STEP_SUMMARY"
-                      fi
-                    done
+                    if [[ -f actionlint.log ]]; then
+                      echo "" >> "$GITHUB_STEP_SUMMARY"
+                      echo "<details><summary>actionlint (last lines)</summary>" >> "$GITHUB_STEP_SUMMARY"
+                      tail -n 10 actionlint.log >> "$GITHUB_STEP_SUMMARY"
+                      echo "</details>" >> "$GITHUB_STEP_SUMMARY"
+                    fi
                   fi
