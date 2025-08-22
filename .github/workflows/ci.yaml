@@ -34,29 +34,24 @@ jobs:
               shell: bash
               run: |
                   set -euo pipefail
-                  # Decide base for comparison
                   if [[ "${{ github.event_name }}" == "pull_request" ]]; then
                     git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
                     BASE="origin/${{ github.base_ref }}"
                   else
-                    # push or schedule: compare to previous commit if available
                     git fetch --no-tags --depth=2 origin "${{ github.ref_name }}"
                     if git rev-parse HEAD~1 >/dev/null 2>&1; then
                       BASE="HEAD~1"
                     else
-                      # Empty tree as base for first commit case
                       BASE="$(git hash-object -t tree /dev/null)"
                     fi
                   fi
 
-                  # List changed stack directories under stacks/<name>/
                   CHANGED_STACKS=$(git diff --name-only "$BASE"...HEAD \
                     | grep '^stacks/' || true)
                   STACK_NAMES=$(printf "%s\n" "$CHANGED_STACKS" \
                     | awk -F/ 'NF>1 {print $2}' \
                     | sort -u)
 
-                  # Build JSON array for matrix or empty array
                   if [[ -n "$STACK_NAMES" ]]; then
                     MATRIX=$(jq -n --arg stacks "$STACK_NAMES" '($stacks|split("\n")|map(select(length>0))) | {stack: .}')
                     echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
@@ -66,9 +61,11 @@ jobs:
                     echo "have_changes=false" >> "$GITHUB_OUTPUT"
                   fi
 
-                  # Summary
-                  echo "## Change Detection" >> "$GITHUB_STEP_SUMMARY"
-                  echo "- Changed stacks: \`$(echo "$STACK_NAMES" | tr '\n' ' ')\`" >> "$GITHUB_STEP_SUMMARY"
+                  echo "## 🔍 Change Detection" >> "$GITHUB_STEP_SUMMARY"
+                  if [[ -n "$STACK_NAMES" ]]; then
+                    echo "- Changed stacks: \`$(echo "$STACK_NAMES" | tr '\n' ' ')\` ✅" >> "$GITHUB_STEP_SUMMARY"
+                  else
+                    echo "- No stacks changed ✅" >> "$GITHUB_STEP_SUMMARY"
 
     validate_stacks:
         name: Validate (per changed stack)
@@ -81,15 +78,13 @@ jobs:
         steps:
             - name: Checkout repo
               uses: actions/checkout@v4
-
             - name: Set up Docker (Buildx)
               uses: docker/setup-buildx-action@v3
-
             - name: Install yamllint
               run: sudo apt-get update && sudo apt-get install -y yamllint
 
             - name: Lint YAML in stacks/${{ matrix.stack }}
-              run: yamllint "stacks/${{ matrix.stack }}"
+              run: yamllint "stacks/${{ matrix.stack }}" 2>&1 | tee yamllint.log
 
             - name: Validate docker-compose files in stacks/${{ matrix.stack }}
               shell: bash
@@ -108,9 +103,18 @@ jobs:
             - name: Summary
               if: always()
               run: |
-                  echo "### Validation summary for \`stacks/${{ matrix.stack }}\`" >> "$GITHUB_STEP_SUMMARY"
-                  echo "- YAML lint ✅" >> "$GITHUB_STEP_SUMMARY"
-                  echo "- Compose config ✅" >> "$GITHUB_STEP_SUMMARY"
+                  echo "### ✅ Validation summary for \`stacks/${{ matrix.stack }}\`" >> "$GITHUB_STEP_SUMMARY"
+                  if [[ "${{ job.status }}" == "success" ]]; then
+                    echo "- YAML lint ✅" >> "$GITHUB_STEP_SUMMARY"
+                    echo "- Compose config ✅" >> "$GITHUB_STEP_SUMMARY"
+                  else
+                    echo "- One or more validation checks ❌" >> "$GITHUB_STEP_SUMMARY"
+                    if [[ -f yamllint.log ]]; then
+                      echo "" >> "$GITHUB_STEP_SUMMARY"
+                      echo "<details><summary>YAML errors (last lines)</summary>" >> "$GITHUB_STEP_SUMMARY"
+                      tail -n 10 yamllint.log >> "$GITHUB_STEP_SUMMARY"
+                      echo "</details>" >> "$GITHUB_STEP_SUMMARY"
+                    fi
 
     security_images:
         name: Security scan (images only)
@@ -118,7 +122,6 @@ jobs:
         steps:
             - name: Checkout repo
               uses: actions/checkout@v4
-
             - name: Install yq
               run: |
                   sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.44.2/yq_linux_amd64
@@ -136,14 +139,11 @@ jobs:
                     | grep -v '^$' \
                     | sort -u > images.txt
 
-                  echo "Images found:"
-                  cat images.txt || true
-
                   count=$(wc -l < images.txt | xargs)
                   : "${count:=0}"
                   echo "count=$count" >> "$GITHUB_OUTPUT"
 
-                  echo "## Image Inventory" >> "$GITHUB_STEP_SUMMARY"
+                  echo "## 📦 Image Inventory" >> "$GITHUB_STEP_SUMMARY"
                   echo "- Total images: \`$count\`" >> "$GITHUB_STEP_SUMMARY"
                   echo "" >> "$GITHUB_STEP_SUMMARY"
                   echo "### Preview (up to 10 images)" >> "$GITHUB_STEP_SUMMARY"
@@ -159,22 +159,31 @@ jobs:
               run: |
                   set -euo pipefail
                   failed=0
+                  > trivy.log
                   while read -r img; do
                     [[ -z "$img" ]] && continue
                     echo "::group::Trivy scan $img"
-                    trivy image --scanners vuln --severity CRITICAL --ignore-unfixed --no-progress "$img" || failed=1
+                    trivy image --scanners vuln --severity CRITICAL --ignore-unfixed --no-progress "$img" 2>&1 | tee -a trivy.log || failed=1
                     echo "::endgroup::"
                   done < images.txt
                   if (( failed )); then
-                    echo "One or more images have CRITICAL vulnerabilities."
                     exit 1
                   fi
 
             - name: Summary
               if: always()
               run: |
-                  echo "### Security (images)" >> "$GITHUB_STEP_SUMMARY"
-                  echo "- Trivy image scan: **completed**" >> "$GITHUB_STEP_SUMMARY"
+                  echo "### 🛡 Security (images)" >> "$GITHUB_STEP_SUMMARY"
+                  if [[ "${{ job.status }}" == "success" ]]; then
+                    echo "- Trivy scan ✅ — no CRITICAL vulns found" >> "$GITHUB_STEP_SUMMARY"
+                  else
+                    echo "- Trivy scan ❌ — CRITICAL vulns detected" >> "$GITHUB_STEP_SUMMARY"
+                    if [[ -f trivy.log ]]; then
+                      echo "" >> "$GITHUB_STEP_SUMMARY"
+                      echo "<details><summary>Trivy output (last lines)</summary>" >> "$GITHUB_STEP_SUMMARY"
+                      tail -n 10 trivy.log >> "$GITHUB_STEP_SUMMARY"
+                      echo "</details>" >> "$GITHUB_STEP_SUMMARY"
+                    fi
 
     security_secrets:
         name: Security scan (secrets)
@@ -182,7 +191,6 @@ jobs:
         steps:
             - name: Checkout repo
               uses: actions/checkout@v4
-
             - name: Install TruffleHog
               shell: bash
               run: |
@@ -191,13 +199,22 @@ jobs:
                   echo "$PWD/bin" >> "$GITHUB_PATH"
 
             - name: Scan for secrets in stacks/
-              run: trufflehog filesystem --no-update --only-verified --fail stacks
+              run: trufflehog filesystem --no-update --only-verified --fail stacks 2>&1 | tee trufflehog.log
 
             - name: Summary
               if: always()
               run: |
-                  echo "### Security (secrets)" >> "$GITHUB_STEP_SUMMARY"
-                  echo "- TruffleHog scan on \`stacks/\`: **completed**" >> "$GITHUB_STEP_SUMMARY"
+                  echo "### 🔑 Security (secrets)" >> "$GITHUB_STEP_SUMMARY"
+                  if [[ "${{ job.status }}" == "success" ]]; then
+                    echo "- TruffleHog ✅ — no verified secrets" >> "$GITHUB_STEP_SUMMARY"
+                  else
+                    echo "- TruffleHog ❌ — potential secrets detected" >> "$GITHUB_STEP_SUMMARY"
+                    if [[ -f trufflehog.log ]]; then
+                      echo "" >> "$GITHUB_STEP_SUMMARY"
+                      echo "<details><summary>TruffleHog output (last lines)</summary>" >> "$GITHUB_STEP_SUMMARY"
+                      tail -n 10 trufflehog.log >> "$GITHUB_STEP_SUMMARY"
+                      echo "</details>" >> "$GITHUB_STEP_SUMMARY"
+                    fi
 
     meta_lint:
         name: Meta lint (workflows + README)
@@ -205,7 +222,6 @@ jobs:
         steps:
             - name: Checkout repo
               uses: actions/checkout@v4
-
             - name: Install actionlint (official script)
               run: |
                   curl -sSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash \
@@ -213,14 +229,12 @@ jobs:
                   actionlint --version
 
             - name: Lint GitHub workflows (actionlint)
-              run: |
-                  actionlint -color -shellcheck= -pyflakes=
+              run: actionlint -color -shellcheck= -pyflakes= 2>&1 | tee actionlint.log
 
             - name: Set up Node
               uses: actions/setup-node@v4
               with:
                   node-version: "20"
-
             - name: Install markdownlint preset provider
               run: |
                   if [ ! -f package.json ]; then npm init -y >/dev/null 2>&1; fi
@@ -231,10 +245,22 @@ jobs:
               with:
                   globs: README.md
                   config: .markdownlint.json
+              continue-on-error: true
 
             - name: Summary
               if: always()
               run: |
-                  echo "### Meta Lint" >> "$GITHUB_STEP_SUMMARY"
-                  echo "- actionlint: **completed**" >> "$GITHUB_STEP_SUMMARY"
-                  echo "- markdownlint (README.md): **completed**" >> "$GITHUB_STEP_SUMMARY"
+                  echo "### 📝 Meta Lint" >> "$GITHUB_STEP_SUMMARY"
+                  if [[ "${{ job.status }}" == "success" ]]; then
+                    echo "- actionlint ✅" >> "$GITHUB_STEP_SUMMARY"
+                    echo "- markdownlint ✅" >> "$GITHUB_STEP_SUMMARY"
+                  else
+                    echo "- Linting ❌" >> "$GITHUB_STEP_SUMMARY"
+                    for f in actionlint.log markdownlint.log; do
+                      if [[ -f $f ]]; then
+                        echo "" >> "$GITHUB_STEP_SUMMARY"
+                        echo "<details><summary>${f} (last lines)</summary>" >> "$GITHUB_STEP_SUMMARY"
+                        tail -n 10 "$f" >> "$GITHUB_STEP_SUMMARY"
+                        echo "</details>" >> "$GITHUB_STEP_SUMMARY"
+                      fi
+                    done
