@@ -45,6 +45,7 @@ _Proxmox Dashboard:_
     - Stacks reconciled directly from GitHub
     - GitHub Actions: linting, Compose validation, secret scanning (TruffleHog)
     - Host-level secret injection (no secrets in Git)
+    - Portainer runs in a dedicated highly available LXC, with **Portainer Agents deployed across all nodes/devices**, enabling centralized, single-interface management of the entire fleet
 
 - **CI/CD with Dokploy**
 
@@ -54,7 +55,7 @@ _Proxmox Dashboard:_
 - **Workflow & Automation Tools**
 
     - **Kestra** – workflow orchestration
-    - **Dozzle** – real-time container logs
+    - **Dozzle** – real-time container logs, with **Dozzle Agents on all nodes** for fleet-wide visibility
     - **Uptime Kuma** – black-box monitoring + alerting
     - **Vaultwarden** – secrets vault + encrypted backups
 
@@ -142,7 +143,7 @@ Here’s a quick overview (full configs in [`stacks/`](stacks/)):
 
 ## Repo Structure
 
-```
+```bash
 stacks/
   ├── dns/               # DNS stack
   ├── media/             # Plex + automation
