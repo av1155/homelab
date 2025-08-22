@@ -66,6 +66,7 @@ jobs:
                     echo "- Changed stacks: \`$(echo "$STACK_NAMES" | tr '\n' ' ')\` ✅" >> "$GITHUB_STEP_SUMMARY"
                   else
                     echo "- No stacks changed ✅" >> "$GITHUB_STEP_SUMMARY"
+                  fi
 
     validate_stacks:
         name: Validate (per changed stack)
@@ -115,6 +116,7 @@ jobs:
                       tail -n 10 yamllint.log >> "$GITHUB_STEP_SUMMARY"
                       echo "</details>" >> "$GITHUB_STEP_SUMMARY"
                     fi
+                  fi
 
     security_images:
         name: Security scan (images only)
@@ -184,6 +186,7 @@ jobs:
                       tail -n 10 trivy.log >> "$GITHUB_STEP_SUMMARY"
                       echo "</details>" >> "$GITHUB_STEP_SUMMARY"
                     fi
+                  fi
 
     security_secrets:
         name: Security scan (secrets)
@@ -215,6 +218,7 @@ jobs:
                       tail -n 10 trufflehog.log >> "$GITHUB_STEP_SUMMARY"
                       echo "</details>" >> "$GITHUB_STEP_SUMMARY"
                     fi
+                  fi
 
     meta_lint:
         name: Meta lint (workflows + README)
@@ -264,3 +268,4 @@ jobs:
                         echo "</details>" >> "$GITHUB_STEP_SUMMARY"
                       fi
                     done
+                  fi
