@@ -143,7 +143,7 @@ Here’s a quick overview (full configs in [`stacks/`](stacks/)):
 
 ## Repo Structure
 
-```
+```bash
 stacks/
   ├── dns/               # DNS stack
   ├── media/             # Plex + automation
