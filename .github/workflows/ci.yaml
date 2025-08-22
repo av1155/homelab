@@ -1,45 +1,241 @@
-name: CI - Validate Docker Compose & YAML
+name: CI - Validate Stacks, Security & Lint
 
-"on":
+on:
     push:
-        branches:
-            - "main"
+        branches: ["main"]
     pull_request:
-        branches:
-            - "main"
+        branches: ["main"]
+    schedule:
+        - cron: "0 3 * * *" # Nightly security runs at 03:00 UTC
+    workflow_dispatch:
+
+# Default minimal permissions; override per-job when needed
+permissions:
+    contents: read
+
+concurrency:
+    group: ci-${{ github.ref }}
+    cancel-in-progress: true
 
 jobs:
-    validate:
+    detect_changes:
+        name: Detect changed stacks
         runs-on: ubuntu-latest
+        outputs:
+            have_changes: ${{ steps.changed.outputs.have_changes }}
+            matrix: ${{ steps.changed.outputs.matrix }}
+        steps:
+            - name: Checkout repo
+              uses: actions/checkout@v4
+            - name: Install jq
+              run: sudo apt-get update && sudo apt-get install -y jq
 
+            - name: Compute changed stacks
+              id: changed
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  # Decide base for comparison
+                  if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+                    git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+                    BASE="origin/${{ github.base_ref }}"
+                  else
+                    # push or schedule: compare to previous commit if available
+                    git fetch --no-tags --depth=2 origin "${{ github.ref_name }}"
+                    if git rev-parse HEAD~1 >/dev/null 2>&1; then
+                      BASE="HEAD~1"
+                    else
+                      # Empty tree as base for first commit case
+                      BASE="$(git hash-object -t tree /dev/null)"
+                    fi
+                  fi
+
+                  # List changed stack directories under stacks/<name>/
+                  CHANGED_STACKS=$(git diff --name-only "$BASE"...HEAD \
+                    | grep '^stacks/' || true)
+                  STACK_NAMES=$(printf "%s\n" "$CHANGED_STACKS" \
+                    | awk -F/ 'NF>1 {print $2}' \
+                    | sort -u)
+
+                  # Build JSON array for matrix or empty array
+                  if [[ -n "$STACK_NAMES" ]]; then
+                    MATRIX=$(jq -n --arg stacks "$STACK_NAMES" '($stacks|split("\n")|map(select(length>0))) | {stack: .}')
+                    echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+                    echo "have_changes=true" >> "$GITHUB_OUTPUT"
+                  else
+                    echo 'matrix={"stack":[]}' >> "$GITHUB_OUTPUT"
+                    echo "have_changes=false" >> "$GITHUB_OUTPUT"
+                  fi
+
+                  # Summary
+                  echo "## Change Detection" >> "$GITHUB_STEP_SUMMARY"
+                  echo "- Changed stacks: \`$(echo "$STACK_NAMES" | tr '\n' ' ')\`" >> "$GITHUB_STEP_SUMMARY"
+
+    validate_stacks:
+        name: Validate (per changed stack)
+        needs: detect_changes
+        if: needs.detect_changes.outputs.have_changes == 'true'
+        runs-on: ubuntu-latest
+        strategy:
+            fail-fast: false
+            matrix: ${{ fromJson(needs.detect_changes.outputs.matrix) }}
         steps:
             - name: Checkout repo
               uses: actions/checkout@v4
 
-            # Install dependencies
-            - name: Install Docker
+            - name: Set up Docker (Buildx)
               uses: docker/setup-buildx-action@v3
 
             - name: Install yamllint
               run: sudo apt-get update && sudo apt-get install -y yamllint
 
-            # Check YAML formatting
-            - name: Lint YAML files
-              run: yamllint .
+            - name: Lint YAML in stacks/${{ matrix.stack }}
+              run: yamllint "stacks/${{ matrix.stack }}"
 
-            # Validate docker-compose files
-            - name: Validate Docker Compose files
+            - name: Validate docker-compose files in stacks/${{ matrix.stack }}
+              shell: bash
               run: |
-                  find stacks -name "docker-compose.yaml" -print0 | while IFS= read -r -d '' f; do
+                  set -euo pipefail
+                  mapfile -d '' files < <(find "stacks/${{ matrix.stack }}" -name "docker-compose.yaml" -print0)
+                  if (( ${#files[@]} == 0 )); then
+                    echo "No docker-compose.yaml in stacks/${{ matrix.stack }}"
+                    exit 0
+                  fi
+                  for f in "${files[@]}"; do
                     echo "Validating $f"
                     docker compose -f "$f" config --no-interpolate >/dev/null
                   done
 
-            - name: Install trufflehog
+            - name: Summary
+              if: always()
               run: |
-                  curl -sSfL \
-                    https://raw.githubusercontent.com/trufflesecurity/trufflehog/v3.90.5/scripts/install.sh | sh
+                  echo "### Validation summary for \`stacks/${{ matrix.stack }}\`" >> "$GITHUB_STEP_SUMMARY"
+                  echo "- YAML lint ✅" >> "$GITHUB_STEP_SUMMARY"
+                  echo "- Compose config ✅" >> "$GITHUB_STEP_SUMMARY"
+
+    security_images:
+        name: Security scan (images + SBOM)
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout repo
+              uses: actions/checkout@v4
+
+            - name: Install yq
+              run: |
+                  sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.44.2/yq_linux_amd64
+                  sudo chmod +x /usr/local/bin/yq
+
+            - name: Collect unique images from compose files
+              id: collect
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  > images.txt
+                  while IFS= read -r -d '' f; do
+                    yq -r '.services[].image // empty' "$f"
+                  done < <(find stacks -name "docker-compose.yaml" -print0) | sort -u > images.txt
+
+                  echo "Images found:"
+                  cat images.txt || true
+
+                  count=$(wc -l < images.txt | xargs)
+                  echo "count=$count" >> "$GITHUB_OUTPUT"
+
+                  echo "## Image Inventory" >> "$GITHUB_STEP_SUMMARY"
+                  echo "- Total images: \`$count\`" >> "$GITHUB_STEP_SUMMARY"
+
+            - name: Install Trivy (CLI)
+              run: |
+                  curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
+
+            - name: Install Syft (SBOM)
+              run: |
+                  curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sudo sh -s -- -b /usr/local/bin
+
+            - name: Scan images with Trivy (CRITICAL)
+              if: steps.collect.outputs.count != '0'
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  failed=0
+                  while read -r img; do
+                    echo "::group::Trivy scan $img"
+                    trivy image --severity CRITICAL --ignore-unfixed --no-progress "$img" || failed=1
+                    echo "::endgroup::"
+                  done < images.txt
+                  if (( failed )); then
+                    echo "One or more images have CRITICAL/HIGH vulnerabilities."
+                    exit 1
+                  fi
+
+            - name: Generate SBOMs with Syft
+              if: steps.collect.outputs.count != '0'
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  mkdir -p sbom
+                  while read -r img; do
+                    out="sbom/$(echo "$img" | tr '/:' '__').spdx.json"
+                    echo "SBOM -> $out"
+                    syft "$img" -o spdx-json > "$out"
+                  done < images.txt
+
+            - name: Upload SBOMs
+              if: steps.collect.outputs.count != '0'
+              uses: actions/upload-artifact@v4
+              with:
+                  name: sbom
+                  path: sbom
+
+            - name: Summary
+              if: always()
+              run: |
+                  echo "### Security (images + SBOM)" >> "$GITHUB_STEP_SUMMARY"
+                  echo "- Trivy image scan: **completed**" >> "$GITHUB_STEP_SUMMARY"
+                  echo "- SBOMs: **uploaded** as artifact \`sbom\`" >> "$GITHUB_STEP_SUMMARY"
+
+    security_secrets:
+        name: Security scan (secrets)
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout repo
+              uses: actions/checkout@v4
+
+            - name: Install TruffleHog
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/v3.90.5/scripts/install.sh | sh
                   echo "$PWD/bin" >> "$GITHUB_PATH"
 
-            - name: Scan for secrets
+            - name: Scan for secrets in stacks/
               run: trufflehog filesystem --no-update --only-verified --fail stacks
+
+            - name: Summary
+              if: always()
+              run: |
+                  echo "### Security (secrets)" >> "$GITHUB_STEP_SUMMARY"
+                  echo "- TruffleHog scan on \`stacks/\`: **completed**" >> "$GITHUB_STEP_SUMMARY"
+
+    meta_lint:
+        name: Meta lint (workflows + README)
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout repo
+              uses: actions/checkout@v4
+
+            - name: Lint GitHub workflows (actionlint)
+              uses: rhysd/actionlint@v1
+
+            - name: Lint README (markdownlint)
+              uses: DavidAnson/markdownlint-cli2-action@v16
+              with:
+                  globs: README.md
+                  config: .markdownlint.json
+
+            - name: Summary
+              if: always()
+              run: |
+                  echo "### Meta Lint" >> "$GITHUB_STEP_SUMMARY"
+                  echo "- actionlint: **completed**" >> "$GITHUB_STEP_SUMMARY"
+                  echo "- markdownlint (README.md): **completed**" >> "$GITHUB_STEP_SUMMARY"
