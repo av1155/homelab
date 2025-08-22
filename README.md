@@ -1,141 +1,124 @@
-# Homelab
+# Homelab – Infrastructure Overview
 
-This repository contains the configuration of my self-hosted **homelab**, built on **Proxmox** (VM/LXC orchestration) and managed as code in Git. It defines infrastructure services, applications, and automation workflows that are deployed reproducibly using Docker Compose.
-
-> 💡 This homelab demonstrates my ability to design, automate, and operate **production-grade infrastructure**
+I operate a **production-grade, cloud-inspired homelab** designed for **high availability, automation, and resilience**. It demonstrates practical expertise in building and maintaining modern infrastructure with **Proxmox, Kubernetes, Docker, ZFS, and GitOps workflows**. All services and stacks are defined as code, ensuring full reproducibility and enabling transparent review of my practices.
 
 ## Skills Snapshot
 
-- Infrastructure: Proxmox (HA clustering), Kubernetes, Docker, ZFS, NAS
-- Automation: GitOps, GitHub Actions, Portainer Stacks, Dokploy, Kestra
-- CI/CD & Observability: TruffleHog, Uptime Kuma, Dozzle
-- Networking & Security: Cloudflare Zero Trust, WireGuard, VLANs, firewalls
-- Backup & DR: ZFS snapshots, Synology NAS, multi-tier cloud backups
+- **Infrastructure & Clustering** – Proxmox HA, Kubernetes, Docker, ZFS, Synology NAS
+- **Automation & CI/CD** – GitOps, GitHub Actions, Portainer Stacks, Dokploy
+- **Observability & Ops** – Uptime Kuma, Dozzle, Kestra (workflow orchestration)
+- **Networking & Security** – Cloudflare Zero Trust, VLANs, WireGuard VPN, firewalls
+- **Backup & DR** – ZFS replication, multi-tier NAS + cloud backups
 
 ![Homepage Dashboard](images/Homelab.jpeg)
 
 ![Proxmox Cluster Overview](images/Proxmox.jpeg)
 
-## Workflow
-
-- **Infrastructure**: Proxmox provides VM/LXC orchestration, networking, and storage.
-- **Applications**: Deployed with Docker Compose (using Portainer Git Stacks for automation).
-- **Configuration**: Version-controlled in Git for reproducibility.
-- **Secrets**: Handled via Portainer secrets or host environment, never committed.
-
-## CI
-
-A lightweight GitHub Actions workflow runs on each push/PR:
-
-- **Lints YAML**: Checks all `.yaml` files for formatting/style issues.
-- **Validates Compose**: Ensures every `docker-compose.yaml` parses correctly.
-- **Scans for secrets**: Detects verified secrets with TruffleHog.
-
-Keeping the homelab **consistent, reproducible, and safe**.
-
----
-
-# Infrastructure Overview
-
-I designed and operate a **highly available, production-grade homelab** that simulates modern cloud-native environments. It is engineered for **resilience, observability, automated deployments, and scalable application hosting**, closely mirroring real-world production infrastructure.
-
 ---
 
 ## Compute & Clustering
 
-- **Proxmox 2-node HA cluster**:
+- **Proxmox 2-node HA cluster** with quorum device:
 
-    - Intel NUC 12 i5-1240P (SSD + NVMe/ZFS)
-    - Intel NUC 11 i5-1145G7 (SSD + NVMe/ZFS)
-    - **Raspberry Pi 5 (8GB RAM + NVMe)** as QDevice for quorum & secondary services.
-
-- **Workload strategy**:
-
-    - **LXCs** → lightweight Dockerized services for low overhead & easy management.
-    - **VMs** → Kubernetes master + 3 workers for orchestration, education, and production-grade experimentation.
+    - Intel NUC 12 (i5-1240P, SSD + NVMe/ZFS)
+    - Intel NUC 11 (i5-1145G7, SSD + NVMe/ZFS)
+    - Raspberry Pi 5 (8GB RAM, NVMe) as **QDevice** and secondary service host.
 
 - **HA groups & replication**:
 
-    - Configured with node priorities and automatic failover (<3 min downtime).
-    - Replication tuned for resilience, limiting data loss to <15 minutes.
+    - Automated failover with <3 min downtime.
+    - ZFS replication between nodes reduces data loss to <15 minutes.
+    - NUC 11 prioritizes Kubernetes VMs (1 master + 3 workers).
+    - NUC 12 prioritizes LXC workloads running Docker stacks managed by Portainer.
 
----
+- **Workload strategy**:
 
-## Storage & Backup
-
-- **ZFS-backed NVMe storage** on each node → enabling snapshots, HA replication, and high-performance workloads.
-- **Synology DS423+ NAS** (6GB RAM, 2×12TB HDD in SHR, dual NVMe SSD cache/fast volume):
-
-    - NFS mounts for media and raw storage.
-    - **Backup strategy**:
-
-        - Proxmox snapshots → NAS → Cloud (Google Drive/OneDrive) + local SSD.
-        - One-click recovery for VMs and LXCs.
-
-    - NVMe read cache improves performance for active workloads.
-
----
-
-## Networking & Security
-
-- **Ubiquiti UniFi Express 7 router** + **2.5GbE managed switch** (VLANs for isolation & security).
-- **Cloudflare Domain & Zero Trust Access**:
-
-    - All external services routed through **Cloudflare’s orange-cloud proxy**, exposing only HTTPS (443) while masking the home IP from the public internet.
-    - **Automated TLS certificates** issued and renewed via the Cloudflare API, ensuring secure, hands-off certificate management.
-    - **Zero Trust policies** (identity-based access, MFA, and per-service restrictions) applied at the Cloudflare edge for least-privilege, production-grade security.
-
-- **Nginx Proxy Manager** for internal TLS & routing.
-- **WireGuard VPN** for fast, encrypted external access.
-- **AdGuard Home (dual instances)** for DNS filtering & redundancy.
-- **Firewall rules** configured per-service for least-privilege access.
+    - **LXCs** for lightweight, reproducible Dockerized services.
+    - **VMs** for Kubernetes experimentation and production-grade orchestration.
 
 ---
 
 ## Deployment & Automation
 
-- **GitOps-inspired CI/CD**:
+- **Portainer GitOps**:
 
-    - Portainer stacks synced with public GitHub repository.
-    - Automated linting, docker-compose validation, and TruffleHog scans.
-    - Secrets injected at host level for reproducibility.
+    - Stacks reconciled directly from GitHub.
+    - CI/CD pipeline with GitHub Actions enforces linting, Compose validation, and secret scanning (TruffleHog).
+    - Host-level secret injection for reproducibility without exposing sensitive data.
 
 - **Dokploy**:
 
-    - Webhook-driven deployments from GitHub commits/PRs.
-    - Automates dockerization, provisioning, and scaling.
-    - Full DB + config backups to Cloudflare R2 Object Storage.
+    - GitHub webhook-triggered builds for websites and applications.
+    - Automated provisioning, scaling, and database backups.
+    - Config/state backups to Cloudflare R2 for DR readiness.
 
-- **Supporting toolchain**:
+- **Supporting ecosystem**:
 
-    - **Kestra** for orchestration & automation.
-    - **Dozzle** for real-time container logs.
-    - **Uptime Kuma** for monitoring & notifications.
+    - **Kestra** – workflow orchestration & automation.
+    - **Dozzle** – real-time log streaming.
+    - **Uptime Kuma** – monitoring & alerting.
+    - **Vaultwarden** – secrets management + automated encrypted backups.
+
+---
+
+## Networking & Security
+
+- **Ubiquiti UniFi Express 7 router** + **2.5GbE managed switch** with VLAN segmentation.
+- **Cloudflare integration**:
+
+    - External services are proxied through Cloudflare, hiding my home IP while providing caching, optimization, and DDoS protection.
+    - Cloudflare Zero Trust policies applied for per‑service identity‑based access.
+    - Automated TLS management via Cloudflare API.
+
+- **Ingress & DNS**:
+
+    - Nginx Proxy Manager for internal routing and cert management.
+    - Dual **AdGuard Home** instances (Proxmox LXC + Raspberry Pi) for DNS filtering and redundancy.
+
+- **Remote access**:
+
+    - WireGuard VPN for encrypted external access.
+    - Strict firewall rules with service-specific port whitelisting.
+
+---
+
+## Storage & Backup
+
+- **ZFS-backed NVMe storage** on each node for snapshots, replication, and HA.
+- **Synology DS423+ NAS** (2×12TB HDD in SHR + dual NVMe SSD cache/volume):
+
+    - NFS mounts for large media and raw storage.
+    - Multi-tier backup pipeline:
+
+        1. Proxmox snapshots → NAS
+        2. NAS → Cloud (Google Drive/OneDrive) + local SSD
+
+    - Enables one-click recovery of VMs and LXCs.
+
+- **NVMe read cache** accelerates hot workloads.
 
 ---
 
 ## Design Principles
 
-- **Cloud-Centric & Resilient**: Mirrors enterprise-grade HA and DR strategies.
-- **Efficient Workload Separation**: Media, databases, orchestration, proxy, and security services split across nodes.
-- **Scalable & Secure**: VLAN isolation, VPN-only access, and Cloudflare Zero Trust proxy.
-- **Learning-Oriented, Production-Ready**: Kubernetes VMs for education and LXCs for reliable, resource-efficient operations.
-- **Cost-Effective Cloud Simulation**: Runs locally but architected like a scalable mini cloud provider.
+- **Cloud-centric architecture**: Designed locally, but mirrors enterprise HA/DR best practices.
+- **Resilient by default**: ZFS snapshots, replication, automated failover.
+- **Security-first**: VLAN isolation, Cloudflare Zero Trust, VPN-only ingress, least-privilege firewall rules.
+- **Efficient resource use**: LXCs for light workloads, VMs for Kubernetes education and orchestration.
+- **Scalable & automated**: GitOps-driven deployments, webhook-triggered CI/CD, and multi-layered backups.
 
 ---
 
 ## Outcome
 
-This homelab demonstrates the ability to **design, operate, and maintain complex, highly available infrastructure**. It highlights practical experience with:
+This homelab showcases my ability to:
 
-- High Availability & Clustering (Proxmox, ZFS, HA groups)
-- Containerization & Orchestration (Docker, Kubernetes)
-- CI/CD & GitOps workflows (Portainer, Dokploy, GitHub Actions)
-- Observability & Monitoring (Uptime Kuma, Dozzle)
-- Security & Networking (Cloudflare Zero Trust, WireGuard, VLANs, firewalls)
-- Backup & Disaster Recovery (ZFS snapshots, NAS, multi-tier cloud backups)
+- Design and operate **highly available, production-like infrastructure**.
+- Apply **modern DevOps practices** (GitOps, CI/CD, IaC, observability).
+- Manage **secure, automated, and reproducible deployments** at scale.
+- Integrate **backup, monitoring, and orchestration** into a cohesive, cloud-grade system.
 
-This setup reflects a **production-grade DevOps/SRE skill set** built from the ground up.
+It reflects the **hands-on engineering mindset** required of Site Reliability and DevOps Engineers: building systems that are **resilient, automated, observable, and secure**—not just theoretically, but in practice.
 
 ---
 
@@ -222,5 +205,3 @@ stacks/
 - CI enforces YAML style, Compose validity, and **verified** secret scanning.
 
 </details>
-
----
