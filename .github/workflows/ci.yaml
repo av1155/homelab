@@ -91,7 +91,7 @@ jobs:
               shell: bash
               run: |
                   set -euo pipefail
-                  mapfile -d '' files < <(find "stacks/${{ matrix.stack }}" -name "docker-compose.yaml" -print0)
+                  mapfile -d '' files < <(find "stacks/${{ matrix.stack }}" -name "docker-compose.yaml" -print0 || true)
                   if (( ${#files[@]} == 0 )); then
                     echo "No docker-compose.yaml in stacks/${{ matrix.stack }}"
                     exit 0
