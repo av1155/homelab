@@ -298,7 +298,13 @@ jobs:
 
             - name: Capture markdownlint status
               if: always()
-              run: echo "${{ steps.markdownlint.outcome == 'success' && 0 || 1 }}" > markdownlint.status
+              shell: bash
+              run: |
+                  if [[ "${{ steps.markdownlint.outcome }}" == "success" ]]; then
+                    echo "0" > markdownlint.status
+                  else
+                    echo "1" > markdownlint.status
+                  fi
 
             - name: Summary
               if: always()
