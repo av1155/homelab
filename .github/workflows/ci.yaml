@@ -150,9 +150,9 @@ jobs:
               uses: actions/cache/restore@v4
               with:
                   path: ${{ env.BROKEN_CACHE_PATH }}
-                  key: broken-stacks-v2
+                  key: broken-stacks
                   restore-keys: |
-                      broken-stacks-v2-
+                      broken-stacks-
 
             - name: Install jq
               run: |
@@ -335,9 +335,9 @@ jobs:
               uses: actions/cache/restore@v4
               with:
                   path: ${{ env.BROKEN_CACHE_PATH }}
-                  key: broken-stacks-v2
+                  key: broken-stacks
                   restore-keys: |
-                      broken-stacks-v2-
+                      broken-stacks-
 
             - name: Download broken-stacks parts
               uses: actions/download-artifact@v4
@@ -426,7 +426,7 @@ jobs:
               uses: actions/cache/save@v4
               with:
                   path: ${{ env.BROKEN_CACHE_PATH }}
-                  key: broken-stacks-v2-${{ github.run_id }}
+                  key: broken-stacks-${{ github.run_id }}
 
     # 4) Image security — gated inline (no separate gate job)
     security_images:
@@ -434,6 +434,9 @@ jobs:
         if: ${{ !cancelled() }}
         runs-on: ubuntu-latest
         timeout-minutes: 25
+        permissions:
+            contents: read
+            actions: write
         steps:
             - name: Checkout
               uses: actions/checkout@v4
@@ -463,9 +466,7 @@ jobs:
                   while IFS= read -r -d '' f; do
                     yq -r '.services[]? | .image? // ""' "$f"
                   done < <(find "${STACKS_DIR}" -name "docker-compose.yaml" -print0) \
-                    | grep -v '^$' \
-                    | sort -u > images.txt
-
+                    | grep -v '^$' | sort -u > images.txt
                   count="$(wc -l < images.txt | xargs || echo 0)"
                   echo "count=$count" >> "$GITHUB_OUTPUT"
 
@@ -477,12 +478,18 @@ jobs:
                     head -n 10 images.txt | sed 's/^/- /' || true
                   } >> "$GITHUB_STEP_SUMMARY"
 
+            # --- Weekly cache key (ISO week) ---
+            - name: Compute cache epoch (weekly)
+              run: |
+                  set -euo pipefail
+                  # ISO week: YYYY-WW (e.g., 2025-34), zero-padded week
+                  echo "CACHE_EPOCH=$(date -u +%G-%V)" >> "$GITHUB_ENV"
+
             - name: Cache Trivy DB
               uses: actions/cache@v4
               with:
-                  path: |
-                      ~/.cache/trivy
-                  key: trivy-db-${{ runner.os }}-${{ github.run_id }}
+                  path: ~/.cache/trivy
+                  key: trivy-db-${{ runner.os }}-W${{ env.CACHE_EPOCH }}-v1
                   restore-keys: |
                       trivy-db-${{ runner.os }}-
 
@@ -505,6 +512,53 @@ jobs:
                     echo "::endgroup::"
                   done < images.txt
                   (( failed == 0 ))
+
+            # --- Keep only the latest 4 weekly caches per OS ---
+            - name: Prune old Trivy caches (keep last 4)
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  set -euo pipefail
+                  sudo apt-get update -y
+                  sudo apt-get install -y jq >/dev/null 2>&1 || true
+
+                  # Ensure gh (GitHub CLI) is available
+                  if ! command -v gh >/dev/null; then
+                    # Add official GitHub CLI apt repo (Ubuntu 24.04)
+                    curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+                      | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+                    sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+                    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
+                      | sudo tee /etc/apt/sources.list.d/github-cli.list >/dev/null
+                    sudo apt-get update -y
+                    sudo apt-get install -y gh || { echo "WARN: gh install failed; skipping prune."; exit 0; }
+                  fi
+
+                  # Cache extension (idempotent)
+                  gh extension install actions/gh-actions-cache || true
+
+                  REPO="${GITHUB_REPOSITORY}"
+                  PREFIX="trivy-db-${RUNNER_OS}-"
+
+                  # List cache keys, filter by prefix, sort ascending (oldest first)
+                  keys=$(gh actions-cache list -R "$REPO" \
+                    | awk '{print $1}' \
+                    | grep -E "^${PREFIX}" \
+                    | sort || true)
+
+                  keep=4
+                  # Delete all but the newest $keep
+                  to_delete=$(printf "%s\n" "$keys" | awk 'NF' | tail -n +"$((keep+1))" || true)
+
+                  if [[ -n "${to_delete}" ]]; then
+                    echo "Pruning old Trivy caches:"
+                    printf "%s\n" "${to_delete}" | while read -r k; do
+                      echo " - $k"
+                      gh actions-cache delete "$k" -R "$REPO" --confirm || true
+                    done
+                  else
+                    echo "No old Trivy caches to prune (have ≤ ${keep})."
+                  fi
 
             - name: Summary
               if: always()

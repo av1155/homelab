@@ -1,5 +1,7 @@
 # Homelab – Cloud-Inspired Infrastructure
 
+[![CI — Validate Stacks, Security & Lint](https://github.com/av1155/homelab/actions/workflows/ci.yaml/badge.svg)](https://github.com/av1155/homelab/actions/workflows/ci.yaml)
+
 > **TL;DR:**
 > This homelab is a **production-like environment** designed for **high availability, automation, observability, and resilience**.
 > It demonstrates hands-on experience with **Proxmox clustering, Kubernetes, Docker, GitOps, CI/CD, Cloudflare Zero Trust, backups, and monitoring**.
@@ -58,6 +60,32 @@ _Proxmox Dashboard:_
     - **Dozzle** – real-time container logs, with **Dozzle Agents on all nodes** for fleet-wide visibility
     - **Uptime Kuma** – black-box monitoring + alerting
     - **Vaultwarden** – secrets vault + encrypted backups
+
+---
+
+## 🔄 CI/CD
+
+This repository uses a **CI/CD pipeline** to ensure every stack stays **valid, secure, and ready for Portainer GitOps deployment**.
+
+### What’s enforced
+
+- **Workflow & docs linting** – consistent workflows and clean documentation.
+- **YAML & Compose checks** – validate syntax and Docker Compose configs per stack.
+- **Secrets scanning** – block commits containing verified secrets.
+- **Image scanning** – weekly Trivy runs detect CRITICAL CVEs in container images.
+- **Code scanning** – CodeQL enforces no critical security alerts.
+- **Sticky failures** – broken stacks remain flagged until fixed, preventing regressions.
+
+### Why it matters
+
+- Portainer GitOps only deploys **healthy stacks**, reducing drift and risk.
+- Security and quality gates surface issues early, before merge.
+
+### Auto-merge
+
+- PRs from `@av1155` are squashed into `main` automatically once all CI gates and branch ruleset checks pass.
+
+**Result:** `main` always reflects a deployable, validated state.
 
 ---
 
