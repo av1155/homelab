@@ -523,5 +523,3 @@ jobs:
                       fi
                     fi
                   } >> "$GITHUB_STEP_SUMMARY"
-
-                  # test
