@@ -431,13 +431,7 @@ jobs:
     # 4) Image security — gated inline (no separate gate job)
     security_images:
         name: Security scan (images only)
-        needs: [detect_changes, validate_stacks]
-        # Run if: (A) no changes -> skip validation but still scan images
-        #      or (B) changes existed and per-stack validation succeeded
-        if: >
-            needs.detect_changes.outputs.have_changes == 'false' ||
-            (needs.detect_changes.outputs.have_changes == 'true' && needs.validate_stacks.result == 'success')
-
+        if: ${{ !cancelled() }}
         runs-on: ubuntu-latest
         timeout-minutes: 25
         steps:
