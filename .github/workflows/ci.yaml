@@ -492,6 +492,7 @@ jobs:
                   key: trivy-db-${{ runner.os }}-W${{ env.CACHE_EPOCH }}-v1
                   restore-keys: |
                       trivy-db-${{ runner.os }}-
+                  lookup-only: ${{ !(github.event_name == 'schedule' || github.ref == 'refs/heads/main') }}
 
             - name: Install Trivy (CLI)
               run: |
