@@ -13,6 +13,7 @@ services:
             - ADMIN_TOKEN=${VAULTWARDEN_ADMIN_TOKEN}
             - UID=0
             - GID=0
+        invalid_field: true
 
     vaultwarden-backup:
         image: bruceforce/vaultwarden-backup:latest
