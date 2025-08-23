@@ -647,3 +647,5 @@ jobs:
                   } >> "$GITHUB_STEP_SUMMARY"
 
                   exit $fail
+
+            # TEST CACHE
