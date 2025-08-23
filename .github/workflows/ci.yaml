@@ -515,9 +515,9 @@ jobs:
                   done < images.txt
                   (( failed == 0 ))
 
-            # --- Save ONLY from schedule or manual run on main (single writer) ---
+            # --- Save ONLY from schedule/manual on main AND only on a miss ---
             - name: Save Trivy DB cache
-              if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+              if: ${{ (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')) && steps.trivy_restore.outputs.cache-hit != 'true' }}
               uses: actions/cache/save@v4
               with:
                   path: ~/.cache/trivy
@@ -647,5 +647,3 @@ jobs:
                   } >> "$GITHUB_STEP_SUMMARY"
 
                   exit $fail
-
-            # TEST CACHE
