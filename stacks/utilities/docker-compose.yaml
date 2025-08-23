@@ -71,3 +71,4 @@ services:
             - AUTH_SECRET=${PEANUT_AUTH_SECRET}
         volumes:
             - /root/docker/utilities-stack/peanut/config:/config
+# smoke-test Fri Aug 22 20:11:11 EDT 2025
