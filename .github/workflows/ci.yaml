@@ -176,7 +176,8 @@ jobs:
     security_images:
         name: Security scan (images only)
         runs-on: ubuntu-latest
-        needs: [validate_summary, meta_lint, security_secrets]
+        needs: [validate_summary]
+        if: ${{ needs.validate_summary.result == 'success' }}
         steps:
             - name: Checkout repo
               uses: actions/checkout@v4
