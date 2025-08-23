@@ -50,8 +50,13 @@ jobs:
                   STACK_NAMES=$(printf "%s\n" "$CHANGED_STACKS" | awk -F/ 'NF>1 {print $2}' | sort -u)
 
                   if [[ -n "$STACK_NAMES" ]]; then
-                    MATRIX=$(jq -n --arg stacks "$STACK_NAMES" '($stacks|split("\n")|map(select(length>0))) | {stack: .}')
-                    echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+                    MATRIX=$(jq -n --arg stacks "$STACK_NAMES" \
+                      '($stacks|split("\n")|map(select(length>0))) | {stack: .}')
+                    {
+                      echo "matrix<<EOF"
+                      echo "$MATRIX"
+                      echo "EOF"
+                    } >> "$GITHUB_OUTPUT"
                     echo "have_changes=true" >> "$GITHUB_OUTPUT"
                   else
                     echo 'matrix={"stack":[]}' >> "$GITHUB_OUTPUT"
