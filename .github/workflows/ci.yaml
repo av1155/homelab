@@ -523,3 +523,61 @@ jobs:
                       fi
                     fi
                   } >> "$GITHUB_STEP_SUMMARY"
+
+    verified_summary:
+        name: CI Gate — All checks passed
+        needs:
+            - meta_lint
+            - security_secrets
+            - security_images
+            - validate_stacks
+            - persist_broken_cache
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        if: ${{ always() && !cancelled() }}
+        steps:
+            - name: Evaluate required jobs
+              run: |
+                  set -euo pipefail
+
+                  # Collect results from needs context
+                  declare -A RES=(
+                    [meta_lint]="${{ needs.meta_lint.result }}"
+                    [security_secrets]="${{ needs.security_secrets.result }}"
+                    [security_images]="${{ needs.security_images.result }}"
+                    [validate_stacks]="${{ needs.validate_stacks.result }}"
+                  )
+
+                  fail=0
+
+                  require_success () {
+                    local name="$1" res="$2"
+
+                    # Special rule: treat "validate_stacks=skipped" as success (no changed stacks)
+                    if [[ "$name" == "validate_stacks" && "$res" == "skipped" ]]; then
+                      return 0
+                    fi
+
+                    if [[ "$res" != "success" ]]; then
+                      echo "::error title=Gate failed::Job '${name}' result: ${res}"
+                      fail=1
+                    fi
+                  }
+
+                  for name in "${!RES[@]}"; do
+                    require_success "$name" "${RES[$name]}"
+                  done
+
+                  {
+                    echo "### ✅ Verified Summary (CI Gate)"
+                    for name in meta_lint security_secrets security_images validate_stacks; do
+                      res="${RES[$name]}"
+                      sym="✅"
+                      if [[ "$res" != "success" && ! ( "$name" == "validate_stacks" && "$res" == "skipped" ) ]]; then
+                        sym="❌"
+                      fi
+                      echo "- **${name}**: \`${res}\` $sym"
+                    done
+                  } >> "$GITHUB_STEP_SUMMARY"
+
+                  exit $fail
