@@ -516,34 +516,37 @@ jobs:
             # --- Keep only the latest 4 weekly caches per OS ---
             - name: Prune old Trivy caches (keep last 4)
               env:
-                  GH_TOKEN: ${{ github.token }} # gh uses this
+                  GH_TOKEN: ${{ github.token }}
               run: |
                   set -euo pipefail
                   sudo apt-get update -y
                   sudo apt-get install -y jq >/dev/null 2>&1 || true
-                  # Install gh + cache extension
-                  type gh >/dev/null 2>&1 || sudo apt-get install -y gh
+
+                  # Install gh + cache extension if missing
+                  if ! command -v gh >/dev/null; then sudo apt-get install -y gh; fi
                   gh extension install actions/gh-actions-cache || true
 
                   REPO="${GITHUB_REPOSITORY}"
                   PREFIX="trivy-db-${RUNNER_OS}-"
 
-                  # List caches, filter by prefix, grab keys, sort, drop newest 4, delete the rest
+                  # List cache keys, filter by prefix, sort ascending (oldest first)
                   keys=$(gh actions-cache list -R "$REPO" \
-                    | awk -v p="^"$(printf %q "$PREFIX") "$1 ~ p {print \$1}" \
+                    | awk '{print $1}' \
+                    | grep -E "^${PREFIX}" \
                     | sort)
 
                   keep=4
-                  to_delete=$(printf "%s\n" "$keys" | awk 'NF' | head -n -'"$keep"' || true)
+                  # Delete everything except the newest $keep (i.e., drop all but the last $keep lines)
+                  to_delete=$(printf "%s\n" "$keys" | awk 'NF' | head -n -"${keep}" || true)
 
-                  if [[ -n "$to_delete" ]]; then
+                  if [[ -n "${to_delete}" ]]; then
                     echo "Pruning old Trivy caches:"
-                    printf "%s\n" "$to_delete" | while read -r k; do
+                    printf "%s\n" "${to_delete}" | while read -r k; do
                       echo " - $k"
                       gh actions-cache delete "$k" -R "$REPO" --confirm || true
                     done
                   else
-                    echo "No old Trivy caches to prune (have fewer than or equal to $keep)."
+                    echo "No old Trivy caches to prune (have ≤ ${keep})."
                   fi
 
             - name: Summary
