@@ -344,7 +344,7 @@ jobs:
               continue-on-error: true
               with:
                   pattern: broken-stacks-part-*
-                  merge-multiple: true
+                  merge-multiple: false
                   path: .ci/parts
 
             - name: Install jq
