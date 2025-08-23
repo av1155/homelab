@@ -2,9 +2,9 @@ name: CI - Validate Stacks, Security & Lint
 
 on:
     push:
-        branches: ["**"]
+        branches-ignore: ["main"]
     pull_request:
-        branches: ["**"]
+        branches: ["main"]
     schedule:
         - cron: "0 14 * * *" # Nightly security runs at 14:00 UTC
     workflow_dispatch:
