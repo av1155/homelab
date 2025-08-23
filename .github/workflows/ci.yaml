@@ -540,12 +540,13 @@ jobs:
               run: |
                   set -euo pipefail
 
-                  # Collect results from needs context
+                  # Jobs that must succeed to pass the gate:
                   declare -A RES=(
                     [meta_lint]="${{ needs.meta_lint.result }}"
                     [security_secrets]="${{ needs.security_secrets.result }}"
                     [security_images]="${{ needs.security_images.result }}"
                     [validate_stacks]="${{ needs.validate_stacks.result }}"
+                    [persist_broken_cache]="${{ needs.persist_broken_cache.result }}"
                   )
 
                   fail=0
@@ -570,7 +571,7 @@ jobs:
 
                   {
                     echo "### ✅ Verified Summary (CI Gate)"
-                    for name in meta_lint security_secrets security_images validate_stacks; do
+                    for name in meta_lint security_secrets security_images validate_stacks persist_broken_cache; do
                       res="${RES[$name]}"
                       sym="✅"
                       if [[ "$res" != "success" && ! ( "$name" == "validate_stacks" && "$res" == "skipped" ) ]]; then
