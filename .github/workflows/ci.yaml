@@ -1,10 +1,10 @@
-name: CI - Validate Stacks, Security & Lint
+name: CI — Validate Stacks, Security & Lint
 
 on:
     pull_request:
         branches: ["main"]
     schedule:
-        - cron: "0 14 * * *" # Nightly security runs at 14:00 UTC
+        - cron: "0 14 * * *" # Scheduled security runs at 14:00 UTC
     workflow_dispatch:
 
 permissions:
@@ -14,359 +14,47 @@ concurrency:
     group: ci-${{ github.ref }}
     cancel-in-progress: true
 
+env:
+    STACKS_DIR: stacks
+    BROKEN_CACHE_PATH: .ci/broken-stacks.json
+    NODE_VERSION: "20"
+    YQ_VERSION: "v4.44.2"
+    TRUFFLEHOG_VERSION: "v3.90.5"
+
+defaults:
+    run:
+        shell: bash
+
 jobs:
-    detect_changes:
-        name: Detect changed stacks
-        runs-on: ubuntu-latest
-        outputs:
-            have_changes: ${{ steps.changed.outputs.have_changes }}
-            matrix: ${{ steps.changed.outputs.matrix }}
-
-        steps:
-            - name: Checkout repo
-              uses: actions/checkout@v4
-
-            - name: Install jq
-              run: sudo apt-get update && sudo apt-get install -y jq
-
-            - name: Restore broken stacks cache
-              id: broken_cache
-              uses: actions/cache/restore@v4
-              with:
-                  path: .ci/broken-stacks.json
-                  key: broken-stacks
-                  restore-keys: |
-                      broken-stacks-
-
-            - name: Compute changed stacks
-              id: changed
-              shell: bash
-              run: |
-                  set -euo pipefail
-                  if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-                    git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
-                    BASE="origin/${{ github.base_ref }}"
-                  else
-                    git fetch --no-tags --depth=2 origin "${{ github.ref_name }}"
-                    if git rev-parse HEAD~1 >/dev/null 2>&1; then
-                      BASE="HEAD~1"
-                    else
-                      BASE="$(git hash-object -t tree /dev/null)"
-                    fi
-                  fi
-
-                  # Stacks changed in this diff
-                  CHANGED_STACKS=$(git diff --name-only "$BASE"...HEAD | grep '^stacks/' || true)
-                  CHANGED_NAMES=$(printf "%s\n" "$CHANGED_STACKS" | awk -F/ 'NF>1 {print $2}' | sort -u)
-
-                  # Previously broken stacks (from cache)
-                  if [[ -f .ci/broken-stacks.json ]]; then
-                    BROKEN_NAMES=$(jq -r '.stack[]?' .ci/broken-stacks.json | sort -u)
-                  else
-                    BROKEN_NAMES=""
-                  fi
-
-                  # Union of changed + broken (sticky failures)
-                  ALL_NAMES=$(printf "%s\n%s\n" "$CHANGED_NAMES" "$BROKEN_NAMES" | awk NF | sort -u)
-
-                  if [[ -n "$ALL_NAMES" ]]; then
-                    MATRIX=$(jq -n --arg stacks "$ALL_NAMES" \
-                      '($stacks|split("\n")|map(select(length>0))) | {stack: .}')
-                    {
-                      echo "matrix<<EOF"
-                      echo "$MATRIX"
-                      echo "EOF"
-                    } >> "$GITHUB_OUTPUT"
-                    echo "have_changes=true" >> "$GITHUB_OUTPUT"
-                  else
-                    echo 'matrix={"stack":[]}' >> "$GITHUB_OUTPUT"
-                    echo "have_changes=false" >> "$GITHUB_OUTPUT"
-                  fi
-
-                  echo "## 🔍 Change Detection" >> "$GITHUB_STEP_SUMMARY"
-                  if [[ -n "$ALL_NAMES" ]]; then
-                    echo "- Stacks to validate: \`$(echo "$ALL_NAMES" | tr '\n' ' ')\` ✅" >> "$GITHUB_STEP_SUMMARY"
-                  else
-                    echo "- No stacks to validate ✅" >> "$GITHUB_STEP_SUMMARY"
-                  fi
-
-    validate_stacks:
-        name: Validate (per changed stack)
-        needs: detect_changes
-        if: needs.detect_changes.outputs.have_changes == 'true'
-        runs-on: ubuntu-latest
-        strategy:
-            fail-fast: false
-            matrix: ${{ fromJson(needs.detect_changes.outputs.matrix) }}
-        steps:
-            - name: Checkout repo
-              uses: actions/checkout@v4
-            - name: Set up Docker (Buildx)
-              uses: docker/setup-buildx-action@v3
-            - name: Install yamllint
-              run: sudo apt-get update && sudo apt-get install -y yamllint
-
-            - name: Lint YAML in stacks/${{ matrix.stack }}
-              run: yamllint "stacks/${{ matrix.stack }}" 2>&1 | tee yamllint.log
-
-            - name: Validate docker-compose files in stacks/${{ matrix.stack }}
-              shell: bash
-              run: |
-                  set -euo pipefail
-                  mapfile -d '' files < <(find "stacks/${{ matrix.stack }}" -name "docker-compose.yaml" -print0 || true)
-                  if (( ${#files[@]} == 0 )); then
-                    echo "No docker-compose.yaml in stacks/${{ matrix.stack }}"
-                    exit 0
-                  fi
-
-                  failed=0
-                  : > compose-validate.log
-                  for f in "${files[@]}"; do
-                    echo "Validating $f" | tee -a compose-validate.log
-                    # capture stderr so we can show it in the summary
-                    if ! docker compose -f "$f" config --no-interpolate 2>> compose-validate.log; then
-                      failed=1
-                    fi
-                  done
-
-                  # make the step fail if any file failed validation
-                  if (( failed )); then
-                    exit 1
-                  fi
-
-            - name: Summary
-              if: always()
-              run: |
-                  echo "### ✅ Validation summary for \`stacks/${{ matrix.stack }}\`" >> "$GITHUB_STEP_SUMMARY"
-                  if [[ "${{ job.status }}" == "success" ]]; then
-                    echo "- YAML lint ✅" >> "$GITHUB_STEP_SUMMARY"
-                    echo "- Compose config ✅" >> "$GITHUB_STEP_SUMMARY"
-                  else
-                    echo "- One or more validation checks ❌" >> "$GITHUB_STEP_SUMMARY"
-                    if [[ -f compose-validate.log ]]; then
-                      echo "" >> "$GITHUB_STEP_SUMMARY"
-                      echo "<details><summary>Compose validation (last lines)</summary>" >> "$GITHUB_STEP_SUMMARY"
-                      tail -n 20 compose-validate.log >> "$GITHUB_STEP_SUMMARY"
-                      echo "</details>" >> "$GITHUB_STEP_SUMMARY"
-                    fi
-                    if [[ -f yamllint.log ]]; then
-                      echo "" >> "$GITHUB_STEP_SUMMARY"
-                      echo "<details><summary>YAML lint (last lines)</summary>" >> "$GITHUB_STEP_SUMMARY"
-                      tail -n 20 yamllint.log >> "$GITHUB_STEP_SUMMARY"
-                      echo "</details>" >> "$GITHUB_STEP_SUMMARY"
-                    fi
-                  fi
-
-            - name: Install jq (for broken/fixed step)
-              run: sudo apt-get update && sudo apt-get install -y jq
-
-            - name: Mark stack as broken/fixed
-              if: always()
-              shell: bash
-              run: |
-                  set -euo pipefail
-                  mkdir -p .ci
-                  if [[ -f .ci/broken-stacks.json ]]; then
-                    cp .ci/broken-stacks.json .ci/_broken.json
-                  else
-                    echo '{"stack":[]}' > .ci/_broken.json
-                  fi
-
-                  if [[ "${{ job.status }}" == "success" ]]; then
-                    jq --arg s "${{ matrix.stack }}" \
-                      ' .stack -= [ $s ] | {stack: ( .stack // [] | unique ) }' \
-                      .ci/_broken.json > .ci/broken-stacks.json
-                  else
-                    jq --arg s "${{ matrix.stack }}" \
-                      ' .stack += [ $s ] | {stack: ( .stack // [] | unique ) }' \
-                      .ci/_broken.json > .ci/broken-stacks.json
-                  fi
-
-            - name: Upload broken-stacks part
-              if: always()
-              uses: actions/upload-artifact@v4
-              with:
-                  name: broken-stacks-part-${{ matrix.stack }}
-                  path: .ci/broken-stacks.json
-                  retention-days: 3
-
-            - name: Upload validation logs
-              if: failure() && (hashFiles('compose-validate.log','yamllint.log') != '')
-              uses: actions/upload-artifact@v4
-              with:
-                  name: validation-logs-${{ matrix.stack }}-${{ github.run_id }}-${{ github.run_attempt }}
-                  path: |
-                      compose-validate.log
-                      yamllint.log
-                  retention-days: 14
-
-    validate_summary:
-        name: Validate summary
-        needs: [detect_changes, validate_stacks]
-        runs-on: ubuntu-latest
-        if: always()
-        steps:
-            - name: Gate on per-stack results
-              run: |
-                  # 1) detect_changes must succeed
-                  if [[ "${{ needs.detect_changes.result }}" != "success" ]]; then
-                    echo "❌ detect_changes did not complete successfully."
-                    exit 1
-                  fi
-
-                  # 2) If changes exist, validate_stacks must have succeeded
-                  if [[ "${{ needs.detect_changes.outputs.have_changes }}" == "true" ]]; then
-                    if [[ "${{ needs.validate_stacks.result }}" != "success" ]]; then
-                      echo "❌ Per-stack validation failed or didn't run."
-                      exit 1
-                    fi
-                    echo "✅ Per-stack validation passed."
-                    exit 0
-                  fi
-
-                  # 3) No changed stacks → pass
-                  echo "✅ No stack changes; validation not required."
-                  exit 0
-
-    security_images:
-        name: Security scan (images only)
-        runs-on: ubuntu-latest
-        needs: [validate_summary]
-        if: ${{ always() && needs.validate_summary.result == 'success' }}
-        steps:
-            - name: Checkout repo
-              uses: actions/checkout@v4
-            - name: Install yq
-              run: |
-                  sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.44.2/yq_linux_amd64
-                  sudo chmod +x /usr/local/bin/yq
-
-            - name: Collect unique images from compose files
-              id: collect
-              shell: bash
-              run: |
-                  set -euo pipefail
-                  > images.txt
-                  # Check if any docker-compose.yaml files exist
-                  if ! find stacks -name "docker-compose.yaml" | grep -q .; then
-                    # No compose files found, set count to 0 and exit early
-                    echo "No docker-compose.yaml files found."
-                    echo "count=0" >> "$GITHUB_OUTPUT"
-                    echo "## 📦 Image Inventory" >> "$GITHUB_STEP_SUMMARY"
-                    echo "- Total images: \`0\`" >> "$GITHUB_STEP_SUMMARY"
-                    echo "" >> "$GITHUB_STEP_SUMMARY"
-                    echo "### Preview (up to 10 images)" >> "$GITHUB_STEP_SUMMARY"
-                    exit 0
-                  fi
-                  while IFS= read -r -d '' f; do
-                    yq -r '.services[]? | .image? // ""' "$f"
-                  done < <(find stacks -name "docker-compose.yaml" -print0) \
-                    | grep -v '^$' \
-                    | sort -u > images.txt
-
-                  count=$(wc -l < images.txt | xargs)
-                  : "${count:=0}"
-                  echo "count=$count" >> "$GITHUB_OUTPUT"
-
-                  echo "## 📦 Image Inventory" >> "$GITHUB_STEP_SUMMARY"
-                  echo "- Total images: \`$count\`" >> "$GITHUB_STEP_SUMMARY"
-                  echo "" >> "$GITHUB_STEP_SUMMARY"
-                  echo "### Preview (up to 10 images)" >> "$GITHUB_STEP_SUMMARY"
-                  head -n 10 images.txt | sed 's/^/- /' >> "$GITHUB_STEP_SUMMARY" || true
-
-            - name: Install Trivy (CLI)
-              run: |
-                  curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
-
-            - name: Scan images with Trivy (CRITICAL only)
-              if: steps.collect.outputs.count != '0'
-              shell: bash
-              run: |
-                  set -euo pipefail
-                  failed=0
-                  > trivy.log
-                  while read -r img; do
-                    [[ -z "$img" ]] && continue
-                    echo "::group::Trivy scan $img"
-                    trivy image --scanners vuln --severity CRITICAL --ignore-unfixed --no-progress "$img" 2>&1 | tee -a trivy.log || failed=1
-                    echo "::endgroup::"
-                  done < images.txt
-                  if (( failed )); then
-                    exit 1
-                  fi
-
-            - name: Summary
-              if: always()
-              run: |
-                  echo "### 🛡 Security (images)" >> "$GITHUB_STEP_SUMMARY"
-                  if [[ "${{ job.status }}" == "success" ]]; then
-                    echo "- Trivy scan ✅ — no CRITICAL vulns found" >> "$GITHUB_STEP_SUMMARY"
-                  else
-                    echo "- Trivy scan ❌ — CRITICAL vulns detected" >> "$GITHUB_STEP_SUMMARY"
-                    if [[ -f trivy.log ]]; then
-                      echo "" >> "$GITHUB_STEP_SUMMARY"
-                      echo "<details><summary>Trivy output (last lines)</summary>" >> "$GITHUB_STEP_SUMMARY"
-                      tail -n 10 trivy.log >> "$GITHUB_STEP_SUMMARY"
-                      echo "</details>" >> "$GITHUB_STEP_SUMMARY"
-                    fi
-                  fi
-
-    security_secrets:
-        name: Security scan (secrets)
-        runs-on: ubuntu-latest
-        steps:
-            - name: Checkout repo
-              uses: actions/checkout@v4
-            - name: Install TruffleHog
-              shell: bash
-              run: |
-                  set -euo pipefail
-                  curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/v3.90.5/scripts/install.sh | sh
-                  echo "$PWD/bin" >> "$GITHUB_PATH"
-
-            - name: Scan for secrets in stacks/
-              run: trufflehog filesystem --no-update --only-verified --fail stacks 2>&1 | tee trufflehog.log
-
-            - name: Summary
-              if: always()
-              run: |
-                  echo "### 🔑 Security (secrets)" >> "$GITHUB_STEP_SUMMARY"
-                  if [[ "${{ job.status }}" == "success" ]]; then
-                    echo "- TruffleHog ✅ — no verified secrets" >> "$GITHUB_STEP_SUMMARY"
-                  else
-                    echo "- TruffleHog ❌ — potential secrets detected" >> "$GITHUB_STEP_SUMMARY"
-                    if [[ -f trufflehog.log ]]; then
-                      echo "" >> "$GITHUB_STEP_SUMMARY"
-                      echo "<details><summary>TruffleHog output (last lines)</summary>" >> "$GITHUB_STEP_SUMMARY"
-                      tail -n 10 trufflehog.log >> "$GITHUB_STEP_SUMMARY"
-                      echo "</details>" >> "$GITHUB_STEP_SUMMARY"
-                    fi
-                  fi
-
+    # 1) Fast, repo-wide checks that can run immediately and in parallel
     meta_lint:
         name: Meta lint (workflows + README)
         runs-on: ubuntu-latest
+        timeout-minutes: 10
         steps:
-            - name: Checkout repo
+            - name: Checkout
               uses: actions/checkout@v4
 
-            - name: Install actionlint (official script)
+            - name: Install actionlint (pinned downloader)
               run: |
+                  set -euo pipefail
                   curl -sSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash \
                     | bash -s -- latest /usr/local/bin
                   actionlint --version
 
             - name: Lint GitHub workflows (actionlint)
-              run: actionlint -color -shellcheck= -pyflakes= 2>&1 | tee actionlint.log
+              run: |
+                  set -euo pipefail
+                  actionlint -color -shellcheck= -pyflakes= 2>&1 | tee actionlint.log
 
-            # Needed so ".markdownlint.json" can `extends: "markdownlint/style/prettier"`
             - name: Set up Node
               uses: actions/setup-node@v4
               with:
-                  node-version: "20"
+                  node-version: ${{ env.NODE_VERSION }}
 
             - name: Install markdownlint
               run: |
+                  set -euo pipefail
                   if [ ! -f package.json ]; then npm init -y >/dev/null 2>&1; fi
                   npm i -D markdownlint@0.38.0
 
@@ -380,52 +68,276 @@ jobs:
 
             - name: Capture markdownlint status
               if: always()
-              shell: bash
               run: |
-                  if [[ "${{ steps.markdownlint.outcome }}" == "success" ]]; then
-                    echo "0" > markdownlint.status
-                  else
-                    echo "1" > markdownlint.status
-                  fi
+                  [[ "${{ steps.markdownlint.outcome }}" == "success" ]] && echo "0" > markdownlint.status || echo "1" > markdownlint.status
 
             - name: Summary
               if: always()
-              shell: bash
               run: |
-                  echo "### 📝 Meta Lint" >> "$GITHUB_STEP_SUMMARY"
-                  if [[ "${{ job.status }}" == "success" ]]; then
-                    echo "- actionlint ✅" >> "$GITHUB_STEP_SUMMARY"
-                    if [[ -f markdownlint.status && "$(cat markdownlint.status)" == "0" ]]; then
-                      echo "- markdownlint ✅" >> "$GITHUB_STEP_SUMMARY"
+                  {
+                    echo "### 📝 Meta Lint"
+                    if [[ "${{ job.status }}" == "success" ]]; then
+                      echo "- actionlint ✅"
+                      if [[ -f markdownlint.status && "$(cat markdownlint.status)" == "0" ]]; then
+                        echo "- markdownlint ✅"
+                      else
+                        echo "- markdownlint ❌"
+                      fi
                     else
-                      echo "- markdownlint ❌" >> "$GITHUB_STEP_SUMMARY"
+                      echo "- Linting ❌"
+                      if [[ -f actionlint.log ]]; then
+                        echo
+                        echo "<details><summary>actionlint (last lines)</summary>"
+                        tail -n 10 actionlint.log
+                        echo "</details>"
+                      fi
                     fi
+                  } >> "$GITHUB_STEP_SUMMARY"
+
+    security_secrets:
+        name: Security scan (secrets)
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Install TruffleHog
+              run: |
+                  set -euo pipefail
+                  curl -sSfL "https://raw.githubusercontent.com/trufflesecurity/trufflehog/${TRUFFLEHOG_VERSION}/scripts/install.sh" | sh
+                  echo "$PWD/bin" >> "$GITHUB_PATH"
+
+            - name: Scan for secrets in ${{ env.STACKS_DIR }}/
+              run: |
+                  set -euo pipefail
+                  trufflehog filesystem --no-update --only-verified --fail "${STACKS_DIR}" 2>&1 | tee trufflehog.log
+
+            - name: Summary
+              if: always()
+              run: |
+                  {
+                    echo "### 🔑 Security (secrets)"
+                    if [[ "${{ job.status }}" == "success" ]]; then
+                      echo "- TruffleHog ✅ — no verified secrets"
+                    else
+                      echo "- TruffleHog ❌ — potential secrets detected"
+                      if [[ -f trufflehog.log ]]; then
+                        echo
+                        echo "<details><summary>TruffleHog output (last lines)</summary>"
+                        tail -n 10 trufflehog.log
+                        echo "</details>"
+                      fi
+                    fi
+                  } >> "$GITHUB_STEP_SUMMARY"
+
+    # 2) Change detection branch (feeds matrix validation)
+    detect_changes:
+        name: Detect changed stacks
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+        outputs:
+            have_changes: ${{ steps.changed.outputs.have_changes }}
+            matrix: ${{ steps.changed.outputs.matrix }}
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 2
+
+            - name: Restore broken stacks cache
+              id: broken_cache
+              uses: actions/cache/restore@v4
+              with:
+                  path: ${{ env.BROKEN_CACHE_PATH }}
+                  key: broken-stacks-v2
+                  restore-keys: |
+                      broken-stacks-v2-
+
+            - name: Install jq
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y jq
+
+            - name: Compute changed stacks
+              id: changed
+              run: |
+                  set -euo pipefail
+
+                  if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+                    git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+                    BASE="origin/${{ github.base_ref }}"
                   else
-                    echo "- Linting ❌" >> "$GITHUB_STEP_SUMMARY"
-                    if [[ -f actionlint.log ]]; then
-                      echo "" >> "$GITHUB_STEP_SUMMARY"
-                      echo "<details><summary>actionlint (last lines)</summary>" >> "$GITHUB_STEP_SUMMARY"
-                      tail -n 10 actionlint.log >> "$GITHUB_STEP_SUMMARY"
-                      echo "</details>" >> "$GITHUB_STEP_SUMMARY"
+                    if git rev-parse HEAD~1 >/dev/null 2>&1; then
+                      BASE="HEAD~1"
+                    else
+                      BASE="$(git hash-object -t tree /dev/null)"
                     fi
                   fi
 
+                  CHANGED_STACKS="$(git diff --name-only "$BASE"...HEAD | grep -E '^'"${STACKS_DIR}"'/[^/]+/' || true)"
+                  CHANGED_NAMES="$(printf "%s\n" "$CHANGED_STACKS" | awk -F/ 'NF>1 {print $2}' | sort -u)"
+
+                  if [[ -f "${BROKEN_CACHE_PATH}" ]]; then
+                    BROKEN_NAMES="$(jq -r '.stack[]?' "${BROKEN_CACHE_PATH}" | sort -u)"
+                  else
+                    BROKEN_NAMES=""
+                  fi
+
+                  ALL_NAMES="$(printf "%s\n%s\n" "$CHANGED_NAMES" "$BROKEN_NAMES" | awk NF | sort -u)"
+
+                  if [[ -n "$ALL_NAMES" ]]; then
+                    MATRIX="$(jq -n --arg s "$ALL_NAMES" '($s|split("\n")|map(select(length>0))) | {stack: .}')"
+                    {
+                      echo "matrix<<EOF"
+                      echo "$MATRIX"
+                      echo "EOF"
+                    } >> "$GITHUB_OUTPUT"
+                    echo "have_changes=true" >> "$GITHUB_OUTPUT"
+                  else
+                    echo 'matrix={"stack":[]}' >> "$GITHUB_OUTPUT"
+                    echo "have_changes=false" >> "$GITHUB_OUTPUT"
+                  fi
+
+                  {
+                    echo "## 🔍 Change Detection"
+                    if [[ -n "$ALL_NAMES" ]]; then
+                      echo "- Stacks to validate: \`$(echo "$ALL_NAMES" | tr '\n' ' ')\` ✅"
+                    else
+                      echo "- No stacks to validate ✅"
+                    fi
+                  } >> "$GITHUB_STEP_SUMMARY"
+
+    validate_stacks:
+        name: Validate (per changed stack)
+        needs: detect_changes
+        if: needs.detect_changes.outputs.have_changes == 'true'
+        runs-on: ubuntu-latest
+        timeout-minutes: 20
+        strategy:
+            fail-fast: false
+            matrix: ${{ fromJson(needs.detect_changes.outputs.matrix) }}
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@v3
+
+            - name: Install tools (yamllint, jq)
+              run: |
+                  set -euo pipefail
+                  sudo apt-get update
+                  sudo apt-get install -y yamllint jq
+
+            - name: Lint YAML in ${{ env.STACKS_DIR }}/${{ matrix.stack }}
+              run: |
+                  set -euo pipefail
+                  yamllint "${STACKS_DIR}/${{ matrix.stack }}" 2>&1 | tee yamllint.log
+
+            - name: Validate docker-compose files in ${{ env.STACKS_DIR }}/${{ matrix.stack }}
+              run: |
+                  set -euo pipefail
+                  mapfile -d '' files < <(find "${STACKS_DIR}/${{ matrix.stack }}" -name "docker-compose.yaml" -print0 || true)
+                  if (( ${#files[@]} == 0 )); then
+                    echo "No docker-compose.yaml in ${STACKS_DIR}/${{ matrix.stack }}"
+                    exit 0
+                  fi
+
+                  failed=0
+                  : > compose-validate.log
+                  for f in "${files[@]}"; do
+                    echo "Validating $f" | tee -a compose-validate.log
+                    if ! docker compose -f "$f" config --no-interpolate 2>> compose-validate.log; then
+                      failed=1
+                    fi
+                  done
+
+                  (( failed == 0 ))
+
+            - name: Summary
+              if: always()
+              run: |
+                  {
+                    echo "### ✅ Validation summary for \`${STACKS_DIR}/${{ matrix.stack }}\`"
+                    if [[ "${{ job.status }}" == "success" ]]; then
+                      echo "- YAML lint ✅"
+                      echo "- Compose config ✅"
+                    else
+                      echo "- One or more validation checks ❌"
+                      if [[ -f compose-validate.log ]]; then
+                        echo
+                        echo "<details><summary>Compose validation (last lines)</summary>"
+                        tail -n 20 compose-validate.log
+                        echo "</details>"
+                      fi
+                      if [[ -f yamllint.log ]]; then
+                        echo
+                        echo "<details><summary>YAML lint (last lines)</summary>"
+                        tail -n 20 yamllint.log
+                        echo "</details>"
+                      fi
+                    fi
+                  } >> "$GITHUB_STEP_SUMMARY"
+
+            - name: Mark stack as broken/fixed
+              if: always()
+              run: |
+                  set -euo pipefail
+                  mkdir -p .ci
+                  if [[ -f "${BROKEN_CACHE_PATH}" ]]; then
+                    cp "${BROKEN_CACHE_PATH}" .ci/_broken.json
+                  else
+                    echo '{"stack":[]}' > .ci/_broken.json
+                  fi
+
+                  if [[ "${{ job.status }}" == "success" ]]; then
+                    jq --arg s "${{ matrix.stack }}" \
+                      ' .stack -= [ $s ] | {stack: ( .stack // [] | unique ) }' \
+                      .ci/_broken.json > "${BROKEN_CACHE_PATH}"
+                  else
+                    jq --arg s "${{ matrix.stack }}" \
+                      ' .stack += [ $s ] | {stack: ( .stack // [] | unique ) }' \
+                      .ci/_broken.json > "${BROKEN_CACHE_PATH}"
+                  fi
+
+            - name: Upload broken-stacks part
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: broken-stacks-part-${{ matrix.stack }}
+                  path: ${{ env.BROKEN_CACHE_PATH }}
+                  retention-days: 3
+
+            - name: Upload validation logs (on failure)
+              if: failure() && (hashFiles('compose-validate.log','yamllint.log') != '')
+              uses: actions/upload-artifact@v4
+              with:
+                  name: validation-logs-${{ matrix.stack }}-${{ github.run_id }}-${{ github.run_attempt }}
+                  path: |
+                      compose-validate.log
+                      yamllint.log
+                  retention-days: 14
+
+    # 3) Persist sticky failures regardless of matrix outcome
     persist_broken_cache:
         name: Persist broken stacks cache
         needs: [detect_changes, validate_stacks]
-        runs-on: ubuntu-latest
         if: always()
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
         steps:
-            - uses: actions/checkout@v4
+            - name: Checkout
+              uses: actions/checkout@v4
 
             - name: Restore previous cache
               id: prev_cache
               uses: actions/cache/restore@v4
               with:
-                  path: .ci/broken-stacks.json
-                  key: broken-stacks
+                  path: ${{ env.BROKEN_CACHE_PATH }}
+                  key: broken-stacks-v2
                   restore-keys: |
-                      broken-stacks-
+                      broken-stacks-v2-
 
             - name: Download broken-stacks parts
               uses: actions/download-artifact@v4
@@ -436,29 +348,186 @@ jobs:
                   path: .ci/parts
 
             - name: Install jq
-              run: sudo apt-get update && sudo apt-get install -y jq
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y jq
 
             - name: Merge parts into cache
-              shell: bash
               run: |
                   set -euo pipefail
                   mkdir -p .ci
-                  if [[ -f .ci/broken-stacks.json ]]; then
-                    cp .ci/broken-stacks.json .ci/_merged.json
+
+                  # Start from previous cache if present, else empty
+                  if [[ -f "${BROKEN_CACHE_PATH}" ]]; then
+                    jq -c '.stack // []' "${BROKEN_CACHE_PATH}" > .ci/_merged.list
                   else
-                    echo '{"stack":[]}' > .ci/_merged.json
+                    echo "[]" > .ci/_merged.list
                   fi
 
-                  shopt -s nullglob
-                  for f in .ci/parts/**/broken-stacks.json .ci/parts/broken-stacks.json; do
-                    jq -s '{stack: (map(.stack // []) | add | unique)}' .ci/_merged.json "$f" > .ci/_tmp.json
-                    mv .ci/_tmp.json .ci/_merged.json
-                  done
-                  mv .ci/_merged.json .ci/broken-stacks.json
-                  echo "Merged cache:"; cat .ci/broken-stacks.json
+                  # Helpers to add/remove a single stack from the merged list
+                  add_stack() {
+                    jq -c --arg s "$1" '. + [$s] | unique' .ci/_merged.list > .ci/_tmp.list
+                    mv .ci/_tmp.list .ci/_merged.list
+                  }
+                  remove_stack() {
+                    jq -c --arg s "$1" 'map(select(. != $s))' .ci/_merged.list > .ci/_tmp.list
+                    mv .ci/_tmp.list .ci/_merged.list
+                  }
+
+                  # Find all broken-stacks.json files in any artifact
+                  while IFS= read -r -d '' f; do
+                    # Walk up until we find the artifact directory named "broken-stacks-part-*"
+                    artifact_dir="$(dirname "$f")"
+                    stack=""
+                    while [[ "$artifact_dir" != "/" && "$artifact_dir" != "." ]]; do
+                      candidate="$(basename "$artifact_dir")"
+                      if [[ "$candidate" == broken-stacks-part-* ]]; then
+                        stack="${candidate#broken-stacks-part-}"
+                        break
+                      fi
+                      artifact_dir="$(dirname "$artifact_dir")"
+                    done
+
+                    if [[ -z "$stack" ]]; then
+                      current="$(jq -c '.stack // []' "$f")"
+                      jq -c --argjson cur "$current" '(. + $cur) | unique' .ci/_merged.list > .ci/_tmp.list
+                      mv .ci/_tmp.list .ci/_merged.list
+                      echo "Merged (legacy) from $f"
+                      continue
+                    fi
+
+                    if jq -e --arg s "$stack" '(.stack // []) | index($s)' "$f" >/dev/null; then
+                      jq -c --arg s "$stack" '. + [$s] | unique' .ci/_merged.list > .ci/_tmp.list
+                      mv .ci/_tmp.list .ci/_merged.list
+                      echo "Added $stack (from $f)"
+                    else
+                      jq -c --arg s "$stack" 'map(select(. != $s))' .ci/_merged.list > .ci/_tmp.list
+                      mv .ci/_tmp.list .ci/_merged.list
+                      echo "Removed $stack (from $f)"
+                    fi
+                  done < <(find .ci/parts -type f -name broken-stacks.json -print0)
+
+                  # Write final merged cache
+                  jq -c '{stack: .}' .ci/_merged.list > "${BROKEN_CACHE_PATH}"
+                  echo "Merged cache:"; cat "${BROKEN_CACHE_PATH}"
+
+                  # Sanity check: ensure file has correct shape
+                  jq -e 'type == "object" and (.stack | type == "array")' "${BROKEN_CACHE_PATH}" >/dev/null
+
+                  {
+                    echo "### ♻️ Broken-stacks cache"
+                    echo "- After merge: $(jq -r '.stack|length' "${BROKEN_CACHE_PATH}")"
+                    echo
+                    echo "#### Preview (up to 10)"
+                    jq -r '.stack[:10][] | "- \(. )"' "${BROKEN_CACHE_PATH}"
+                  } >> "$GITHUB_STEP_SUMMARY"
 
             - name: Save merged cache
               uses: actions/cache/save@v4
               with:
-                  path: .ci/broken-stacks.json
-                  key: broken-stacks-${{ github.run_id }}
+                  path: ${{ env.BROKEN_CACHE_PATH }}
+                  key: broken-stacks-v2-${{ github.run_id }}
+
+    # 4) Image security — gated inline (no separate gate job)
+    security_images:
+        name: Security scan (images only)
+        needs: [detect_changes, validate_stacks]
+        # Run if: (A) no changes -> skip validation but still scan images
+        #      or (B) changes existed and per-stack validation succeeded
+        if: >
+            needs.detect_changes.outputs.have_changes == 'false' ||
+            (needs.detect_changes.outputs.have_changes == 'true' && needs.validate_stacks.result == 'success')
+
+        runs-on: ubuntu-latest
+        timeout-minutes: 25
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Install yq
+              run: |
+                  sudo wget -qO /usr/local/bin/yq "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64"
+                  sudo chmod +x /usr/local/bin/yq
+
+            - name: Collect unique images from compose files
+              id: collect
+              run: |
+                  set -euo pipefail
+                  > images.txt
+                  if ! find "${STACKS_DIR}" -name "docker-compose.yaml" | grep -q .; then
+                    echo "No docker-compose.yaml files found."
+                    echo "count=0" >> "$GITHUB_OUTPUT"
+                    {
+                      echo "## 📦 Image Inventory"
+                      echo "- Total images: \`0\`"
+                      echo
+                      echo "### Preview (up to 10 images)"
+                    } >> "$GITHUB_STEP_SUMMARY"
+                    exit 0
+                  fi
+
+                  while IFS= read -r -d '' f; do
+                    yq -r '.services[]? | .image? // ""' "$f"
+                  done < <(find "${STACKS_DIR}" -name "docker-compose.yaml" -print0) \
+                    | grep -v '^$' \
+                    | sort -u > images.txt
+
+                  count="$(wc -l < images.txt | xargs || echo 0)"
+                  echo "count=$count" >> "$GITHUB_OUTPUT"
+
+                  {
+                    echo "## 📦 Image Inventory"
+                    echo "- Total images: \`$count\`"
+                    echo
+                    echo "### Preview (up to 10 images)"
+                    head -n 10 images.txt | sed 's/^/- /' || true
+                  } >> "$GITHUB_STEP_SUMMARY"
+
+            - name: Cache Trivy DB
+              uses: actions/cache@v4
+              with:
+                  path: |
+                      ~/.cache/trivy
+                  key: trivy-db-${{ runner.os }}-${{ github.run_id }}
+                  restore-keys: |
+                      trivy-db-${{ runner.os }}-
+
+            - name: Install Trivy (CLI)
+              run: |
+                  set -euo pipefail
+                  curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
+                    | sudo sh -s -- -b /usr/local/bin
+
+            - name: Scan images with Trivy (CRITICAL only)
+              if: steps.collect.outputs.count != '0'
+              run: |
+                  set -euo pipefail
+                  failed=0
+                  : > trivy.log
+                  while read -r img; do
+                    [[ -z "$img" ]] && continue
+                    echo "::group::Trivy scan $img"
+                    trivy image --scanners vuln --severity CRITICAL --ignore-unfixed --no-progress "$img" 2>&1 | tee -a trivy.log || failed=1
+                    echo "::endgroup::"
+                  done < images.txt
+                  (( failed == 0 ))
+
+            - name: Summary
+              if: always()
+              run: |
+                  {
+                    echo "### 🛡 Security (images)"
+                    if [[ "${{ job.status }}" == "success" ]]; then
+                      echo "- Trivy scan ✅ — no CRITICAL vulns found"
+                    else
+                      echo "- Trivy scan ❌ — CRITICAL vulns detected"
+                      if [[ -f trivy.log ]]; then
+                        echo
+                        echo "<details><summary>Trivy output (last lines)</summary>"
+                        tail -n 10 trivy.log
+                        echo "</details>"
+                      fi
+                    fi
+                  } >> "$GITHUB_STEP_SUMMARY"
+
+                  # test
