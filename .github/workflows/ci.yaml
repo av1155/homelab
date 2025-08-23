@@ -572,6 +572,7 @@ jobs:
                   {
                     echo "### ✅ Verified Summary (CI Gate)"
                     for name in meta_lint security_secrets security_images validate_stacks persist_broken_cache; do
+
                       res="${RES[$name]}"
                       sym="✅"
                       if [[ "$res" != "success" && ! ( "$name" == "validate_stacks" && "$res" == "skipped" ) ]]; then
