@@ -3,6 +3,7 @@ services:
         container_name: wg-easy
         image: ghcr.io/wg-easy/wg-easy:latest
         restart: unless-stopped
+        invalid_field: true
 
         ports:
             - "51820:51820/udp" # VPN

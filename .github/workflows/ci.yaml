@@ -21,11 +21,22 @@ jobs:
         outputs:
             have_changes: ${{ steps.changed.outputs.have_changes }}
             matrix: ${{ steps.changed.outputs.matrix }}
+
         steps:
             - name: Checkout repo
               uses: actions/checkout@v4
+
             - name: Install jq
               run: sudo apt-get update && sudo apt-get install -y jq
+
+            - name: Restore broken stacks cache
+              id: broken_cache
+              uses: actions/cache/restore@v4
+              with:
+                  path: .ci/broken-stacks.json
+                  key: broken-stacks
+                  restore-keys: |
+                      broken-stacks-
 
             - name: Compute changed stacks
               id: changed
@@ -44,11 +55,22 @@ jobs:
                     fi
                   fi
 
+                  # Stacks changed in this diff
                   CHANGED_STACKS=$(git diff --name-only "$BASE"...HEAD | grep '^stacks/' || true)
-                  STACK_NAMES=$(printf "%s\n" "$CHANGED_STACKS" | awk -F/ 'NF>1 {print $2}' | sort -u)
+                  CHANGED_NAMES=$(printf "%s\n" "$CHANGED_STACKS" | awk -F/ 'NF>1 {print $2}' | sort -u)
 
-                  if [[ -n "$STACK_NAMES" ]]; then
-                    MATRIX=$(jq -n --arg stacks "$STACK_NAMES" \
+                  # Previously broken stacks (from cache)
+                  if [[ -f .ci/broken-stacks.json ]]; then
+                    BROKEN_NAMES=$(jq -r '.stack[]?' .ci/broken-stacks.json | sort -u)
+                  else
+                    BROKEN_NAMES=""
+                  fi
+
+                  # Union of changed + broken (sticky failures)
+                  ALL_NAMES=$(printf "%s\n%s\n" "$CHANGED_NAMES" "$BROKEN_NAMES" | awk NF | sort -u)
+
+                  if [[ -n "$ALL_NAMES" ]]; then
+                    MATRIX=$(jq -n --arg stacks "$ALL_NAMES" \
                       '($stacks|split("\n")|map(select(length>0))) | {stack: .}')
                     {
                       echo "matrix<<EOF"
@@ -62,10 +84,10 @@ jobs:
                   fi
 
                   echo "## 🔍 Change Detection" >> "$GITHUB_STEP_SUMMARY"
-                  if [[ -n "$STACK_NAMES" ]]; then
-                    echo "- Changed stacks: \`$(echo "$STACK_NAMES" | tr '\n' ' ')\` ✅" >> "$GITHUB_STEP_SUMMARY"
+                  if [[ -n "$ALL_NAMES" ]]; then
+                    echo "- Stacks to validate: \`$(echo "$ALL_NAMES" | tr '\n' ' ')\` ✅" >> "$GITHUB_STEP_SUMMARY"
                   else
-                    echo "- No stacks changed ✅" >> "$GITHUB_STEP_SUMMARY"
+                    echo "- No stacks to validate ✅" >> "$GITHUB_STEP_SUMMARY"
                   fi
 
     validate_stacks:
@@ -134,6 +156,39 @@ jobs:
                       echo "</details>" >> "$GITHUB_STEP_SUMMARY"
                     fi
                   fi
+
+            - name: Install jq (for broken/fixed step)
+              run: sudo apt-get update && sudo apt-get install -y jq
+
+            - name: Mark stack as broken/fixed
+              if: always()
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  mkdir -p .ci
+                  if [[ -f .ci/broken-stacks.json ]]; then
+                    cp .ci/broken-stacks.json .ci/_broken.json
+                  else
+                    echo '{"stack":[]}' > .ci/_broken.json
+                  fi
+
+                  if [[ "${{ job.status }}" == "success" ]]; then
+                    jq --arg s "${{ matrix.stack }}" \
+                      ' .stack -= [ $s ] | {stack: ( .stack // [] | unique ) }' \
+                      .ci/_broken.json > .ci/broken-stacks.json
+                  else
+                    jq --arg s "${{ matrix.stack }}" \
+                      ' .stack += [ $s ] | {stack: ( .stack // [] | unique ) }' \
+                      .ci/_broken.json > .ci/broken-stacks.json
+                  fi
+
+            - name: Upload broken-stacks part
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: broken-stacks-part-${{ matrix.stack }}
+                  path: .ci/broken-stacks.json
+                  retention-days: 3
 
             - name: Upload validation logs
               if: failure() && (hashFiles('compose-validate.log','yamllint.log') != '')
@@ -354,3 +409,56 @@ jobs:
                       echo "</details>" >> "$GITHUB_STEP_SUMMARY"
                     fi
                   fi
+
+    persist_broken_cache:
+        name: Persist broken stacks cache
+        needs: [detect_changes, validate_stacks]
+        runs-on: ubuntu-latest
+        if: always()
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Restore previous cache
+              id: prev_cache
+              uses: actions/cache/restore@v4
+              with:
+                  path: .ci/broken-stacks.json
+                  key: broken-stacks
+                  restore-keys: |
+                      broken-stacks-
+
+            - name: Download broken-stacks parts
+              uses: actions/download-artifact@v4
+              continue-on-error: true
+              with:
+                  pattern: broken-stacks-part-*
+                  merge-multiple: true
+                  path: .ci/parts
+
+            - name: Install jq
+              run: sudo apt-get update && sudo apt-get install -y jq
+
+            - name: Merge parts into cache
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  mkdir -p .ci
+                  if [[ -f .ci/broken-stacks.json ]]; then
+                    cp .ci/broken-stacks.json .ci/_merged.json
+                  else
+                    echo '{"stack":[]}' > .ci/_merged.json
+                  fi
+
+                  shopt -s nullglob
+                  for f in .ci/parts/**/broken-stacks.json .ci/parts/broken-stacks.json; do
+                    jq -s '{stack: (map(.stack // []) | add | unique)}' .ci/_merged.json "$f" > .ci/_tmp.json
+                    mv .ci/_tmp.json .ci/_merged.json
+                  done
+                  mv .ci/_merged.json .ci/broken-stacks.json
+                  echo "Merged cache:"; cat .ci/broken-stacks.json
+
+            - name: Save merged cache
+              uses: actions/cache/save@v4
+              with:
+                  path: .ci/broken-stacks.json
+                  key: broken-stacks-${{ github.run_id }}
