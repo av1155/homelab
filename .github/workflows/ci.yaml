@@ -522,7 +522,6 @@ jobs:
                   sudo apt-get update -y
                   sudo apt-get install -y jq >/dev/null 2>&1 || true
 
-                  # Install gh + cache extension if missing
                   if ! command -v gh >/dev/null; then sudo apt-get install -y gh; fi
                   gh extension install actions/gh-actions-cache || true
 
@@ -536,8 +535,8 @@ jobs:
                     | sort)
 
                   keep=4
-                  # Delete everything except the newest $keep (i.e., drop all but the last $keep lines)
-                  to_delete=$(printf "%s\n" "$keys" | awk 'NF' | head -n -"${keep}" || true)
+                  # Delete all but the newest $keep
+                  to_delete=$(printf "%s\n" "$keys" | awk 'NF' | tail -n +"$((keep+1))" || true)
 
                   if [[ -n "${to_delete}" ]]; then
                     echo "Pruning old Trivy caches:"
