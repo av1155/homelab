@@ -96,10 +96,21 @@ jobs:
                     echo "No docker-compose.yaml in stacks/${{ matrix.stack }}"
                     exit 0
                   fi
+
+                  failed=0
+                  : > compose-validate.log
                   for f in "${files[@]}"; do
-                    echo "Validating $f"
-                    docker compose -f "$f" config --no-interpolate >/dev/null
+                    echo "Validating $f" | tee -a compose-validate.log
+                    # capture stderr so we can show it in the summary
+                    if ! docker compose -f "$f" config --no-interpolate 2>> compose-validate.log; then
+                      failed=1
+                    fi
                   done
+
+                  # make the step fail if any file failed validation
+                  if (( failed )); then
+                    exit 1
+                  fi
 
             - name: Summary
               if: always()
@@ -110,13 +121,29 @@ jobs:
                     echo "- Compose config ✅" >> "$GITHUB_STEP_SUMMARY"
                   else
                     echo "- One or more validation checks ❌" >> "$GITHUB_STEP_SUMMARY"
+                    if [[ -f compose-validate.log ]]; then
+                      echo "" >> "$GITHUB_STEP_SUMMARY"
+                      echo "<details><summary>Compose validation (last lines)</summary>" >> "$GITHUB_STEP_SUMMARY"
+                      tail -n 20 compose-validate.log >> "$GITHUB_STEP_SUMMARY"
+                      echo "</details>" >> "$GITHUB_STEP_SUMMARY"
+                    fi
                     if [[ -f yamllint.log ]]; then
                       echo "" >> "$GITHUB_STEP_SUMMARY"
-                      echo "<details><summary>YAML errors (last lines)</summary>" >> "$GITHUB_STEP_SUMMARY"
-                      tail -n 10 yamllint.log >> "$GITHUB_STEP_SUMMARY"
+                      echo "<details><summary>YAML lint (last lines)</summary>" >> "$GITHUB_STEP_SUMMARY"
+                      tail -n 20 yamllint.log >> "$GITHUB_STEP_SUMMARY"
                       echo "</details>" >> "$GITHUB_STEP_SUMMARY"
                     fi
                   fi
+
+            - name: Upload validation logs
+              if: failure() && (hashFiles('compose-validate.log','yamllint.log') != '')
+              uses: actions/upload-artifact@v4
+              with:
+                  name: validation-logs-${{ matrix.stack }}-${{ github.run_id }}-${{ github.run_attempt }}
+                  path: |
+                      compose-validate.log
+                      yamllint.log
+                  retention-days: 14
 
     validate_summary:
         name: Validate summary
@@ -149,6 +176,7 @@ jobs:
     security_images:
         name: Security scan (images only)
         runs-on: ubuntu-latest
+        needs: [validate_summary, meta_lint, security_secrets]
         steps:
             - name: Checkout repo
               uses: actions/checkout@v4
