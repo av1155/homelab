@@ -46,11 +46,8 @@ jobs:
                     fi
                   fi
 
-                  CHANGED_STACKS=$(git diff --name-only "$BASE"...HEAD \
-                    | grep '^stacks/' || true)
-                  STACK_NAMES=$(printf "%s\n" "$CHANGED_STACKS" \
-                    | awk -F/ 'NF>1 {print $2}' \
-                    | sort -u)
+                  CHANGED_STACKS=$(git diff --name-only "$BASE"...HEAD | grep '^stacks/' || true)
+                  STACK_NAMES=$(printf "%s\n" "$CHANGED_STACKS" | awk -F/ 'NF>1 {print $2}' | sort -u)
 
                   if [[ -n "$STACK_NAMES" ]]; then
                     MATRIX=$(jq -n --arg stacks "$STACK_NAMES" '($stacks|split("\n")|map(select(length>0))) | {stack: .}')
@@ -116,6 +113,28 @@ jobs:
                       tail -n 10 yamllint.log >> "$GITHUB_STEP_SUMMARY"
                       echo "</details>" >> "$GITHUB_STEP_SUMMARY"
                     fi
+                  fi
+
+    validate_summary:
+        name: Validate summary
+        needs: [detect_changes, validate_stacks]
+        runs-on: ubuntu-latest
+        if: always()
+        steps:
+            - name: Gate on per-stack results
+              run: |
+                  if [[ "${{ needs.detect_changes.outputs.have_changes }}" == "true" ]]; then
+                    # Changes existed -> per-stack job must have succeeded
+                    if [[ "${{ needs.validate_stacks.result }}" != "success" ]]; then
+                      echo "❌ Per-stack validation failed or didn't run."
+                      exit 1
+                    fi
+                    echo "✅ Per-stack validation passed."
+                    exit 0
+                  else
+                    # No stack changes -> nothing to validate
+                    echo "✅ No stack changes; validation not required."
+                    exit 0
                   fi
 
     security_images:
