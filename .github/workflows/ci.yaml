@@ -177,6 +177,7 @@ jobs:
         name: Security scan (images only)
         runs-on: ubuntu-latest
         needs: [validate_summary]
+        if: ${{ always() && needs.validate_summary.result == 'success' }}
         steps:
             - name: Checkout repo
               uses: actions/checkout@v4
