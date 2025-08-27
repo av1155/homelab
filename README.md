@@ -26,14 +26,22 @@ This project is my **personal lab** and represents the real-world DevOps/SRE ski
 
 ---
 
+## 📈 Stats at a Glance
+
+- **GitOps:** 11 stacks · 27 containers
+- **Portainer-managed fleet (all environments):** 29 stacks · 86 containers across 11 Docker environments
+- **Resilience:** **RTO ≤ 3m** (Proxmox HA), **RPO ≈ 15m** (ZFS replication)
+- **Monitoring:** 64 checks in Uptime Kuma
+- **Availability snapshot:** Core infra **100%** · Exposed Services **99.79%** · Personal Websites **99.93%**
+
+---
+
 ## 🖥️ Compute & Clustering
 
-- **Proxmox 2-node HA cluster** with Raspberry Pi quorum device
-- **Automated failover** (<3 min downtime) + **ZFS replication** (<15 min data loss)
+- **Proxmox 2-node HA cluster** with Raspberry Pi quorum device (HA failover; ZFS snapshots/replication)
 - **Workload separation**:
-
     - **LXCs** → lightweight Dockerized services (Portainer managed)
-    - **VMs** → Kubernetes cluster (1 master + 3 workers) for orchestration practice
+    - **VMs** → Kubernetes cluster (**1 control plane + 3 workers**) for production-simulation (rolling updates, node templating, backup/restore drills, scaling experiments)
 
 _Proxmox Dashboard:_
 ![Proxmox Cluster Overview](images/Proxmox.jpeg)
@@ -43,19 +51,23 @@ _Proxmox Dashboard:_
 ## ⚙️ Deployment & Automation
 
 - **GitOps with Portainer**
-
     - Stacks reconciled directly from GitHub
     - GitHub Actions: linting, Compose validation, secret scanning (TruffleHog)
     - Host-level secret injection (no secrets in Git)
     - Portainer runs in a dedicated highly available LXC, with **Portainer Agents deployed across all nodes/devices**, enabling centralized, single-interface management of the entire fleet
 
-- **CI/CD with Dokploy**
+- **Per-host baseline agents (host-level deployment, centrally controlled):**
+    - `portainer-agent` – centralized management
+    - `dozzle-agent` – node-local logs
+    - `docker-socket-proxy` – least-privilege Docker API
+    - `watchtower` – scheduled image updates + Slack reporting
+    - Deployed on **11 Docker environments** → contributes to the **fleet total of 29 stacks / 86 containers**
 
+- **CI/CD with Dokploy**
     - Webhook-triggered builds for apps/sites
     - Automated provisioning, scaling, DB backups to Cloudflare R2
 
 - **Workflow & Automation Tools**
-
     - **Kestra** – workflow orchestration
     - **Dozzle** – real-time container logs, with **Dozzle Agents on all nodes** for fleet-wide visibility
     - **Uptime Kuma** – black-box monitoring + alerting
@@ -93,7 +105,6 @@ This repository uses a **CI/CD pipeline** to ensure every stack stays **valid, s
 
 - **Ubiquiti UniFi Express 7 router** + 2.5GbE managed switch (VLAN segmentation)
 - **Cloudflare Integration**
-
     - All external services proxied through Cloudflare (DDoS protection, TLS, Zero Trust)
     - Automated certificate management via Cloudflare API
 
@@ -106,10 +117,8 @@ This repository uses a **CI/CD pipeline** to ensure every stack stays **valid, s
 
 - **ZFS NVMe pools** on each node → snapshots + HA replication
 - **Synology DS423+ NAS** (2×12TB HDD SHR + dual NVMe SSD)
-
     - NFS for large media / raw storage
     - Multi-tier backup pipeline:
-
         1. Proxmox snapshots → NAS
         2. NAS → Cloud (Google Drive / OneDrive) + local SSD
 
