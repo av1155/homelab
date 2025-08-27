@@ -44,7 +44,7 @@ This project is my **personal lab** and represents the real-world DevOps/SRE ski
     - **VMs** → Kubernetes cluster (**1 control plane + 3 workers**) for production-simulation (rolling updates, node templating, backup/restore drills, scaling experiments)
 
 _Proxmox Dashboard:_
-![Proxmox Cluster Overview](images/Proxmox.jpeg)
+![Proxmox Cluster Overview](assets/Proxmox.jpeg)
 
 ---
 
@@ -125,7 +125,7 @@ This repository uses a **CI/CD pipeline** to ensure every stack stays **valid, s
 - **Cloudflare R2** → app/DB backup storage
 
 _Homelab Dashboard:_
-![Homepage Dashboard](images/Homelab.jpeg)
+![Homepage Dashboard](assets/Homelab.jpeg)
 
 ---
 
