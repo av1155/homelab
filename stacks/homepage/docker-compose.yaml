@@ -5,8 +5,8 @@ services:
         restart: unless-stopped
         ports:
             - 3100:3000
-        env_file:
-            - stack.env
+        # env_file:
+        #     - stack.env
         environment:
             - HOMEPAGE_ALLOWED_HOSTS=${HOMEPAGE_ALLOWED_HOSTS}
         volumes:
