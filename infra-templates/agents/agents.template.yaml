@@ -1,3 +1,8 @@
+# Set the following environment variables:
+# - HOSTNAME: The hostname/identifier for this server (e.g., pi-server, homelab-01, etc.)
+# - WATCHTOWER_HTTP_API_TOKEN: API token for Watchtower HTTP API
+# - SLACK_WEBHOOK_URL: Slack webhook URL for notifications
+
 services:
     dockerproxy:
         image: ghcr.io/tecnativa/docker-socket-proxy:latest
@@ -28,7 +33,7 @@ services:
         command: agent
         container_name: dozzle-agent
         environment:
-            - DOZZLE_HOSTNAME=pi-server
+            - DOZZLE_HOSTNAME=${HOSTNAME}
         ports:
             - 7007:7007
         volumes:
@@ -47,14 +52,14 @@ services:
             --rolling-restart
             --log-level info
             --http-api-metrics
-            --http-api-token ...
+            --http-api-token ${WATCHTOWER_HTTP_API_TOKEN}
         environment:
             WATCHTOWER_NOTIFICATIONS: slack
-            WATCHTOWER_NOTIFICATION_SLACK_HOOK_URL: https://hooks.slack.com/services/.../.../...
+            WATCHTOWER_NOTIFICATION_SLACK_HOOK_URL: ${SLACK_WEBHOOK_URL}
             WATCHTOWER_NOTIFICATION_SLACK_IDENTIFIER: "Watchtower"
             WATCHTOWER_NOTIFICATION_SLACK_CHANNEL: "#watchtower"
             WATCHTOWER_NOTIFICATION_REPORT: "true"
-            WATCHTOWER_NOTIFICATIONS_HOSTNAME: pi-server
+            WATCHTOWER_NOTIFICATIONS_HOSTNAME: ${HOSTNAME}
             WATCHTOWER_NOTIFICATION_TEMPLATE: |
                 {{- if .Report -}}
                   {{- with .Report -}}
