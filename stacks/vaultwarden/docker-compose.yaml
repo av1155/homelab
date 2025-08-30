@@ -15,21 +15,59 @@ services:
             - GID=0
 
     vaultwarden-backup:
-        image: bruceforce/vaultwarden-backup:latest
+        image: ttionya/vaultwarden-backup:latest
         container_name: vaultwarden-backup
         restart: always
         depends_on:
             - vaultwarden
         volumes:
-            - /root/docker/security-stack/vaultwarden/data:/data:ro
-            - /root/docker/security-stack/vaultwarden/backup:/backup
+            - /root/docker/security-stack/vaultwarden/data:/bitwarden/data:ro
+            - /root/docker/security-stack/vaultwarden/rclone-config:/config
+            - /mnt/vaultwarden-backups:/backup # NAS NFS bind mount
             - /etc/localtime:/etc/localtime:ro
             - /etc/timezone:/etc/timezone:ro
         environment:
-            - CRON_TIME=0 * * * * # every hour
-            - DELETE_AFTER=30 # keep backups for 30 days
-            - BACKUP_DIR=/backup
-            - TIMESTAMP=true
-            - ENCRYPTION_PASSWORD=${VW_BACKUP_PASSWORD}
-            - UID=0
-            - GID=0
+            - TIMEZONE=America/New_York
+
+            # Scheduling & retention
+            - CRON=0 * * * *
+            - BACKUP_KEEP_DAYS=30
+
+            # Archive & encryption
+            - ZIP_ENABLE=TRUE
+            - ZIP_TYPE=7z
+            - ZIP_PASSWORD=${VW_BACKUP_PASSWORD}
+
+            # rclone destination
+            - RCLONE_REMOTE_NAME=BitwardenBackup
+            - RCLONE_REMOTE_DIR=/backup
+
+            # Notifications - SMTP
+            - MAIL_SMTP_ENABLE=TRUE
+            - MAIL_TO=${VW_BACKUP_EMAIL_RECIPIENT} # recipient(s)
+            - MAIL_WHEN_SUCCESS=TRUE # disable success emails
+            - MAIL_WHEN_FAILURE=TRUE # enable only on failures
+            - MAIL_SMTP_VARIABLES=-S smtp-use-starttls -S smtp=smtp://smtp.gmail.com:587 -S smtp-auth=login -S smtp-auth-user=${SMTP_EMAIL} -S smtp-auth-password=${SMTP_PASSWORD} -S from=${SMTP_EMAIL}
+
+            # Optional display name
+            - DISPLAY_NAME=vaultwarden
+
+    # vaultwarden-backup:
+    #     image: bruceforce/vaultwarden-backup:latest
+    #     container_name: vaultwarden-backup
+    #     restart: always
+    #     depends_on:
+    #         - vaultwarden
+    #     volumes:
+    #         - /root/docker/security-stack/vaultwarden/data:/data:ro
+    #         - /root/docker/security-stack/vaultwarden/backup:/backup
+    #         - /etc/localtime:/etc/localtime:ro
+    #         - /etc/timezone:/etc/timezone:ro
+    #     environment:
+    #         - CRON_TIME=0 * * * * # every hour
+    #         - DELETE_AFTER=30 # keep backups for 30 days
+    #         - BACKUP_DIR=/backup
+    #         - TIMESTAMP=true
+    #         - ENCRYPTION_PASSWORD=${VW_BACKUP_PASSWORD}
+    #         - UID=0
+    #         - GID=0
