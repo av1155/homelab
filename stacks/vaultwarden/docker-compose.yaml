@@ -45,7 +45,7 @@ services:
             # Notifications - SMTP
             - MAIL_SMTP_ENABLE=TRUE
             - MAIL_TO=${VW_BACKUP_EMAIL_RECIPIENT} # recipient(s)
-            - MAIL_WHEN_SUCCESS=TRUE # disable success emails
+            - MAIL_WHEN_SUCCESS=FALSE # disable success emails
             - MAIL_WHEN_FAILURE=TRUE # enable only on failures
             - MAIL_SMTP_VARIABLES=-S smtp-use-starttls -S smtp=smtp://smtp.gmail.com:587 -S smtp-auth=login -S smtp-auth-user=${SMTP_EMAIL} -S smtp-auth-password=${SMTP_PASSWORD} -S from=${SMTP_EMAIL}
 
