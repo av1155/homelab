@@ -41,7 +41,7 @@ This project is my **personal lab** and represents the real-world DevOps/SRE ski
 - **Proxmox 2-node HA cluster** with Raspberry Pi quorum device (HA failover; ZFS snapshots/replication)
 - **Workload separation**:
     - **LXCs** → lightweight Dockerized services (Portainer managed)
-    - **VMs** → Kubernetes cluster (**1 control plane + 3 workers**) for production-simulation (rolling updates, node templating, backup/restore drills, scaling experiments)
+    - **VMs** → Kubernetes cluster (**3 control planes + 3 workers**)
 
 _Proxmox Dashboard:_
 ![Proxmox Cluster Overview](assets/Proxmox.jpeg)
@@ -70,7 +70,7 @@ _Proxmox Dashboard:_
 - **Workflow & Automation Tools**
     - **Kestra** – workflow orchestration
     - **Dozzle** – real-time container logs, with **Dozzle Agents on all nodes** for fleet-wide visibility
-    - **Uptime Kuma** – black-box monitoring + alerting
+    - **Uptime Kuma** – black-box uptime monitoring + alerting
     - **Vaultwarden** – secrets vault + encrypted backups
 
 ---
