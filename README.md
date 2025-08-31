@@ -205,19 +205,19 @@ It reflects the **engineering mindset** needed in Site Reliability / DevOps: sys
 
 Here’s a quick overview (full configs in [`stacks/`](stacks/)):
 
-| Stack             | Services (examples)                                          | Purpose / Keywords                         |
-| ----------------- | ------------------------------------------------------------ | ------------------------------------------ |
-| **dns**           | AdGuard Home, adguardhome-sync                               | DNS filtering, redundancy                  |
-| **reverse-proxy** | Nginx Proxy Manager                                          | TLS, ingress, Cloudflare API integration   |
-| **wireguard**     | WG-Easy                                                      | VPN server, secure remote access           |
-| **utilities**     | Uptime Kuma, Dozzle, IT-Tools, LibreTranslate, OpenSpeedTest | Monitoring, logs, internal tooling         |
-| **vaultwarden**   | Vaultwarden + backup                                         | Secrets mgmt, encrypted scheduled backups  |
-| **media**         | Plex, Sonarr, Radarr, Overseerr, Prowlarr, Tdarr, Recyclarr  | Media automation, GPU/VA-API transcoding   |
-| **media-vpn**     | Gluetun, qBittorrent                                         | VPN-protected egress, health-gated startup |
-| **mariadb**       | MariaDB, phpMyAdmin                                          | Relational DB + admin UI                   |
-| **kestra**        | Kestra, Postgres                                             | Workflow orchestration, job automation     |
-| **openweb-ui**    | OpenWeb-UI, SearxNG                                          | Local LLM interface + meta search          |
-| **homepage**      | getHomepage                                                  | Single-pane dashboard                      |
+| Stack             | Services (examples)                                                  | Purpose / Keywords                         |
+| ----------------- | -------------------------------------------------------------------- | ------------------------------------------ |
+| **dns**           | AdGuard Home, adguardhome-sync                                       | DNS filtering, redundancy                  |
+| **reverse-proxy** | Nginx Proxy Manager                                                  | TLS, ingress, Cloudflare API integration   |
+| **wireguard**     | WG-Easy                                                              | VPN server, secure remote access           |
+| **utilities**     | Beszel, Uptime Kuma, Dozzle, IT-Tools, LibreTranslate, OpenSpeedTest | Monitoring, logs, internal tooling         |
+| **vaultwarden**   | Vaultwarden + backup                                                 | Secrets mgmt, encrypted scheduled backups  |
+| **media**         | Plex, Sonarr, Radarr, Overseerr, Prowlarr, Tdarr, Recyclarr          | Media automation, GPU/VA-API transcoding   |
+| **media-vpn**     | Gluetun, qBittorrent                                                 | VPN-protected egress, health-gated startup |
+| **mariadb**       | MariaDB, phpMyAdmin                                                  | Relational DB + admin UI                   |
+| **kestra**        | Kestra, Postgres                                                     | Workflow orchestration, job automation     |
+| **openweb-ui**    | OpenWeb-UI, SearxNG                                                  | Local LLM interface + meta search          |
+| **homepage**      | getHomepage                                                          | Single-pane dashboard                      |
 
 ---
 
