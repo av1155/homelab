@@ -67,35 +67,61 @@ _Proxmox Dashboard:_
     - Webhook-triggered builds for apps/sites
     - Automated provisioning, scaling, DB backups to Cloudflare R2
 
-- **Workflow & Automation Tools**
-    - **Kestra** – workflow orchestration
-    - **Dozzle** – real-time container logs, with **Dozzle Agents on all nodes** for fleet-wide visibility
-    - **Uptime Kuma** – black-box uptime monitoring + alerting
-    - **Vaultwarden** – secrets vault + encrypted backups
-
 ---
 
-## 📈 Monitoring with Beszel
+## 📈 Monitoring & Observability
 
-**Beszel monitoring** provides real-time visibility into infrastructure health.
+The homelab uses a **multi-layer monitoring stack** to provide real-time insights into infrastructure, containers, and uptime.
 
-### Features
+### 🖥️ Beszel
+
+**Beszel** provides lightweight, modern monitoring and alerting.
 
 - **Agents deployed** on all LXC containers, the NAS (DS423+), and the Raspberry Pi quorum device.
-- Central **Beszel dashboard** for live metrics:
+- Central dashboard for metrics:
     - CPU, memory, disk, network, GPU, load averages, and temperatures.
-- **SMTP-based alerting** for:
+- **SMTP-based alerting** thresholds:
     - System downtime (10m)
     - CPU >80% (10m)
     - Memory >80% (10m)
     - Disk >80% (10m)
     - Temperature >80°C (10m)
 
-### Benefits
+_Beszel Dashboard:_  
+![Beszel Dashboard](assets/Beszel.jpeg)
 
-- Lightweight, modern monitoring with minimal overhead.
-- Complements Uptime Kuma and Dozzle by adding **resource-level alerting**.
-- Ensures early detection of hardware or resource saturation across the homelab.
+---
+
+### 📜 Dozzle
+
+**Dozzle** gives real-time visibility into Docker container logs.
+
+- **Dozzle Agents** run on all nodes, forwarding logs to a central dashboard.
+- Makes debugging and operational awareness fast and accessible.
+
+_Dozzle Logs View:_  
+![Dozzle Logs](assets/Dozzle.jpeg)
+
+---
+
+### 🌍 Uptime Kuma
+
+**Uptime Kuma** provides external and internal uptime monitoring.
+
+- Tracks availability of exposed services, internal apps, and infrastructure components.
+- 64 checks configured for homelab services.
+- Complements Beszel (resource monitoring) and Dozzle (logs) with black-box availability monitoring.
+
+_Uptime Kuma Dashboard:_  
+![Uptime Kuma](assets/Uptime-Kuma.jpeg)
+
+---
+
+### 🔑 Benefits
+
+- **End-to-end visibility**: metrics (Beszel), logs (Dozzle), uptime checks (Kuma).
+- **Proactive alerts**: SMTP + dashboards ensure quick detection of failures.
+- **Lightweight + modern**: minimal resource footprint, highly integrated.
 
 ---
 
@@ -179,19 +205,19 @@ It reflects the **engineering mindset** needed in Site Reliability / DevOps: sys
 
 Here’s a quick overview (full configs in [`stacks/`](stacks/)):
 
-| Stack             | Services (examples)                                          | Purpose / Keywords                         |
-| ----------------- | ------------------------------------------------------------ | ------------------------------------------ |
-| **dns**           | AdGuard Home, adguardhome-sync                               | DNS filtering, redundancy                  |
-| **reverse-proxy** | Nginx Proxy Manager                                          | TLS, ingress, Cloudflare API integration   |
-| **wireguard**     | WG-Easy                                                      | VPN server, secure remote access           |
-| **utilities**     | Uptime Kuma, Dozzle, IT-Tools, LibreTranslate, OpenSpeedTest | Monitoring, logs, internal tooling         |
-| **vaultwarden**   | Vaultwarden + backup                                         | Secrets mgmt, encrypted scheduled backups  |
-| **media**         | Plex, Sonarr, Radarr, Overseerr, Prowlarr, Tdarr, Recyclarr  | Media automation, GPU/VA-API transcoding   |
-| **media-vpn**     | Gluetun, qBittorrent                                         | VPN-protected egress, health-gated startup |
-| **mariadb**       | MariaDB, phpMyAdmin                                          | Relational DB + admin UI                   |
-| **kestra**        | Kestra, Postgres                                             | Workflow orchestration, job automation     |
-| **openweb-ui**    | OpenWeb-UI, SearxNG                                          | Local LLM interface + meta search          |
-| **homepage**      | getHomepage                                                  | Single-pane dashboard                      |
+| Stack             | Services (examples)                                                  | Purpose / Keywords                         |
+| ----------------- | -------------------------------------------------------------------- | ------------------------------------------ |
+| **dns**           | AdGuard Home, adguardhome-sync                                       | DNS filtering, redundancy                  |
+| **reverse-proxy** | Nginx Proxy Manager                                                  | TLS, ingress, Cloudflare API integration   |
+| **wireguard**     | WG-Easy                                                              | VPN server, secure remote access           |
+| **utilities**     | Beszel, Uptime Kuma, Dozzle, IT-Tools, LibreTranslate, OpenSpeedTest | Monitoring, logs, internal tooling         |
+| **vaultwarden**   | Vaultwarden + backup                                                 | Secrets mgmt, encrypted scheduled backups  |
+| **media**         | Plex, Sonarr, Radarr, Overseerr, Prowlarr, Tdarr, Recyclarr          | Media automation, GPU/VA-API transcoding   |
+| **media-vpn**     | Gluetun, qBittorrent                                                 | VPN-protected egress, health-gated startup |
+| **mariadb**       | MariaDB, phpMyAdmin                                                  | Relational DB + admin UI                   |
+| **kestra**        | Kestra, Postgres                                                     | Workflow orchestration, job automation     |
+| **openweb-ui**    | OpenWeb-UI, SearxNG                                                  | Local LLM interface + meta search          |
+| **homepage**      | getHomepage                                                          | Single-pane dashboard                      |
 
 ---
 
