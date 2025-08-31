@@ -67,6 +67,11 @@ services:
             - HOMEPAGE_VAR_WG_EASY_URL=${HOMEPAGE_VAR_WG_EASY_URL}
             - HOMEPAGE_VAR_WG_EASY_PASSWORD=${HOMEPAGE_VAR_WG_EASY_PASSWORD}
             - HOMEPAGE_VAR_TDARR_URL=${HOMEPAGE_VAR_TDARR_URL}
+            - HOMEPAGE_VAR_BESZEL_URL=${HOMEPAGE_VAR_BESZEL_URL}
+            - HOMEPAGE_VAR_BESZEL_HOST_IP=${HOMEPAGE_VAR_BESZEL_HOST_IP}
+            - HOMEPAGE_VAR_BESZEL_USERNAME=${HOMEPAGE_VAR_BESZEL_USERNAME}
+            - HOMEPAGE_VAR_BESZEL_PASSWORD=${HOMEPAGE_VAR_BESZEL_PASSWORD}
+
         volumes:
             - /root/docker/homepage-stack/homepage/config:/app/config
             - /root/docker/homepage-stack/homepage/images:/app/public/images
