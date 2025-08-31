@@ -1,0 +1,53 @@
+---
+# widgets.yaml — info widgets (shown at the top of the Homepage dashboard)
+
+# SYSTEM & RESOURCE METRICS
+# Displays real-time stats for system performance (CPU, memory, etc.)
+- resources:
+      cpu: true # Show CPU usage
+      memory: true # Show memory usage
+      uptime: true # Show system uptime
+      cputemp: true # Show CPU temperature
+      tempmin: 0 # Minimum temp threshold (for color indicators)
+      tempmax: 100 # Maximum temp threshold (for color indicators)
+      units: metric # Use metric units for temperature
+      network: true # Show network activity (auto-detected interface)
+      expanded: true # More detailed resource sections
+
+      # DISK METRICS
+      disk:
+          - / # Root filesystem (main disk)
+          # You can add additional mount points here:
+          # - /mnt/media
+          # - /mnt/backup
+      diskUnits: bytes # Display disk usage in raw byte counts
+
+# DATE & TIME WIDGET
+# Shows current date and time in the top-right of the dashboard
+- datetime:
+      label: "" # Optional label (blank hides it)
+      text_size: l # Size of the displayed text (s, m, l, xl)
+      format:
+          dateStyle: short # e.g., "4/17/25"
+          timeStyle: short # e.g., "3:45 PM"
+          hour12: true # Use 12-hour time format
+
+# WEATHER WIDGET
+# Shows weather for a specific location using OpenWeatherMap API
+- openweathermap:
+      label: Miami, FL # Displayed label in the UI
+      latitude: 25.7617 # Latitude of the location
+      longitude: -80.1918 # Longitude of the location
+      units: metric # Metric system (°C, m/s, etc.)
+      provider: openweathermap # Use the global API key from .env or providers
+      cache: 5 # Cache API responses (in minutes)
+      format:
+          maximumFractionDigits: 0 # Round decimals to n digits (e.g., 21.5°C)
+
+# SEARCH BAR WIDGET
+# Shows a search bar to be used for internet queries
+- search:
+      provider: google # google, duckduckgo, bing, baidu, brave or custom
+      focus: false # Optional, will set focus to the search bar on page load
+      showSearchSuggestions: true # Optional, will show search suggestions. Defaults to false
+      target: _blank # One of _self, _blank, _parent

@@ -1,0 +1,85 @@
+---
+# settings.yaml — streamlined and opinionated
+
+# 1. Visual chrome
+headerStyle: boxedWidgets # boxed widgets feel modern
+theme: dark # lock in dark mode
+color: slate # slate accents
+fullWidth: true # stretch to full browser width
+useEqualHeights: true # uniform card heights
+statusStyle: "dot" # green/red dot for status
+
+# 2. Global providers
+providers:
+    openweathermap: "{{HOMEPAGE_VAR_OPENWEATHERMAP_API}}"
+    weatherapi: weatherapiapikey
+
+# 3. Group layout
+#    • Admin    — row of 4
+#    • Utilities— row of 3 (icons-only to save space)
+#    • NAS      — row of 4, header collapsed by default
+
+layout:
+    - Core Infrastructure:
+          style: row
+          columns: 4
+
+    - Core Infrastructure Portainer:
+          style: row
+          columns: 3
+          header: false
+
+    - Network Services:
+          style: row
+          columns: 4
+
+    - Storage & Sync:
+          style: row
+          columns: 3
+          header: true
+
+    - NAS Apps:
+          style: row
+          columns: 5
+          header: true
+
+    - Media Server:
+          style: row
+          columns: 3
+          header: true
+    - qBittorrent:
+          style: row
+          columns: 2
+          header: false
+
+    - Utilities:
+          style: row
+          columns: 2
+          iconsOnly: false
+
+    - Documentation & Tools:
+          style: row
+          columns: 4
+          header: true
+
+# 4. Collapse behavior
+disableCollapse: true
+groupsInitiallyCollapsed: false
+
+background:
+    image: /images/looking-far.jpg
+    opacity: 40
+
+cardBlur: xl
+
+# 6. Misc features
+hideVersion: false # show version at bottom
+disableUpdateCheck: false # keep update checks on
+maxGroupColumns: 4 # cap to 4 columns per group
+
+quicklaunch:
+    searchDescriptions: true
+    hideInternetSearch: true
+    showSearchSuggestions: true
+    hideVisitURL: true
+    provider: google # google, duckduckgo, bing, baidu, brave or custom

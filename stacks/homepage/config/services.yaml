@@ -1,0 +1,403 @@
+---
+# For configuration options and examples, please see:
+# https://gethomepage.dev/configs/services/
+
+# Icons
+# Material Design Icons with mdi-XX
+# Simple Icons with si-XX
+# selfh.st/icons with sh-XX
+
+# Specify a custom color for mdi and si icons, e.g.
+# mdi-XX-#f0d453
+# si-XX-#a712a2.
+
+- Core Infrastructure:
+      - Proxmox VE:
+            icon: proxmox
+            href: "{{HOMEPAGE_VAR_PROXMOX_URL}}"
+            siteMonitor: https://10.0.10.pve-ip:8006
+            description: Proxmox Virtual Environment
+            widget:
+                type: proxmox
+                url: "{{HOMEPAGE_VAR_PROXMOX_URL}}"
+                username: "{{HOMEPAGE_VAR_PROXMOX_USERNAME}}"
+                password: "{{HOMEPAGE_VAR_PROXMOX_PASSWORD}}"
+                #node: "{{HOMEPAGE_VAR_PROXMOX_NODE}}" # optional node setting when you want to show metrics for a single node
+
+      - Beszel:
+            icon: beszel
+            href: "{{HOMEPAGE_VAR_BESZEL_URL}}"
+            description: System metrics and alerts
+            server: ct-utilities
+            container: beszel
+            showStats: true
+            widget:
+                type: beszel
+                url: "{{HOMEPAGE_VAR_BESZEL_HOST_IP}}"
+                username: "{{HOMEPAGE_VAR_BESZEL_USERNAME}}"
+                password: "{{HOMEPAGE_VAR_BESZEL_PASSWORD}}"
+                # systemId: ct-dns # optional
+                version: 2
+
+      - Nginx Proxy Manager:
+            icon: nginx-proxy-manager
+            href: http://{{HOMEPAGE_VAR_NPM_URL}}
+            description: Manage reverse proxies and SSL
+            server: ct-proxy
+            container: nginx-proxy-manager
+            showStats: true
+            widget:
+                type: npm
+                url: http://{{HOMEPAGE_VAR_NPM_URL}}
+                username: "{{HOMEPAGE_VAR_NPM_USERNAME}}"
+                password: "{{HOMEPAGE_VAR_NPM_PASSWORD}}"
+
+      - Uptime Kuma:
+            icon: uptime-kuma
+            href: "{{HOMEPAGE_VAR_UPTIMEKUMA_PROXMOX_REMOTE_URL}}"
+            description: Self-hosted monitoring
+            server: ct-utilities
+            container: uptimekuma
+            showStats: true
+            widget:
+                type: uptimekuma
+                url: "{{HOMEPAGE_VAR_UPTIMEKUMA_PROXMOX_URL}}"
+                slug: live
+
+- Core Infrastructure Portainer:
+      - Portainer (Proxmox):
+            icon: docker
+            href: https://portainer.example.com/#!/home
+            description: Docker container manager
+            server: ct-portainer
+            container: portainer
+            showStats: true
+            widget:
+                type: portainer
+                url: "{{HOMEPAGE_VAR_PORTAINER_PROXMOX_URL}}"
+                env: "{{HOMEPAGE_VAR_PORTAINER_PROXMOX_ENV}}"
+                key: "{{HOMEPAGE_VAR_PORTAINER_KEY}}"
+
+      - Portainer (Pi):
+            icon: docker
+            href: https://portainer.example.com/#!/14/docker/dashboard
+            description: Docker container manager
+            server: pi-server
+            container: portainer-agent
+            showStats: true
+            widget:
+                type: portainer
+                url: "{{HOMEPAGE_VAR_PORTAINER_PI_URL}}"
+                env: "{{HOMEPAGE_VAR_PORTAINER_PI_ENV}}"
+                key: "{{HOMEPAGE_VAR_PORTAINER_KEY}}"
+
+      - Portainer (NAS):
+            icon: docker
+            href: https://portainer.example.com/#!/4/docker/dashboard
+            description: Docker container manager
+            server: nas-docker
+            container: portainer_agent
+            showStats: true
+            widget:
+                type: portainer
+                url: "{{HOMEPAGE_VAR_PORTAINER_NAS_URL}}"
+                env: "{{HOMEPAGE_VAR_PORTAINER_NAS_ENV}}"
+                key: "{{HOMEPAGE_VAR_PORTAINER_KEY}}"
+
+- Network Services:
+      - AdGuard Home (Primary):
+            icon: adguard-home
+            href: "{{HOMEPAGE_VAR_ADGUARD_PROXMOX_REMOTE_URL}}"
+            description: DNS filtering and blocking
+            server: ct-dns
+            container: adguardhome
+            showStats: true
+            widget:
+                type: adguard
+                url: "{{HOMEPAGE_VAR_ADGUARD_PROXMOX_URL}}"
+                username: "{{HOMEPAGE_VAR_ADGUARD_PROXMOX_USERNAME}}"
+                password: "{{HOMEPAGE_VAR_ADGUARD_PROXMOX_PASSWORD}}"
+
+      - AdGuard Home (Secondary):
+            icon: adguard-home
+            href: "{{HOMEPAGE_VAR_ADGUARD_PI_REMOTE_URL}}"
+            description: DNS filtering and blocking
+            server: pi-server
+            container: adguardhome
+            showStats: true
+            widget:
+                type: adguard
+                url: "{{HOMEPAGE_VAR_ADGUARD_PI_URL}}"
+                username: "{{HOMEPAGE_VAR_ADGUARD_PI_USERNAME}}"
+                password: "{{HOMEPAGE_VAR_ADGUARD_PI_PASSWORD}}"
+
+      - WireGuard VPN:
+            icon: wireguard
+            href: "{{HOMEPAGE_VAR_WG_EASY_REMOTE_URL}}"
+            description: Simple WireGuard dashboard using wg-easy
+            server: ct-security
+            container: wg-easy
+            showStats: true
+            widget:
+                type: wgeasy
+                url: "{{HOMEPAGE_VAR_WG_EASY_URL}}"
+                password: "{{HOMEPAGE_VAR_WG_EASY_PASSWORD}}"
+                # threshold: 2 # optional
+
+      - PeaNUT:
+            icon: ups
+            href: https://peanut.example.com/
+            description: Power backup via APC BE600M1
+            server: ct-utilities
+            container: peanut
+            showStats: true
+            widget:
+                type: peanut
+                url: "{{HOMEPAGE_VAR_PEANUT_URL}}"
+                key: "{{HOMEPAGE_VAR_PEANUT_KEY}}"
+                username: "{{HOMEPAGE_VAR_PEANUT_USER}}"
+                password: "{{HOMEPAGE_VAR_PEANUT_PASS}}"
+
+- Storage & Sync:
+      - Synology NAS DS423+ | HDD:
+            icon: synology
+            href: https://nas.example.com
+            siteMonitor: https://10.0.10.nas-ip:5001
+            description: Volume 1
+            widget:
+                type: diskstation
+                url: "{{HOMEPAGE_VAR_NAS_URL}}"
+                username: "{{HOMEPAGE_VAR_NAS_USER}}"
+                password: "{{HOMEPAGE_VAR_NAS_PASSW}}"
+                volume: volume_1 # HDDs
+
+      - Synology NAS DS423+ | NVMe:
+            icon: synology
+            href: https://nas.example.com
+            siteMonitor: https://10.0.10.nas-ip:5001
+            description: Volume 2
+            widget:
+                type: diskstation
+                url: "{{HOMEPAGE_VAR_NAS_URL}}"
+                username: "{{HOMEPAGE_VAR_NAS_USER}}"
+                password: "{{HOMEPAGE_VAR_NAS_PASSW}}"
+                volume: volume_2 # NVMes
+
+      - Syncthing:
+            icon: syncthing
+            href: "{{HOMEPAGE_VAR_SYNCTHING_NAS_URL}}"
+            description: Continuous file sync across devices
+            server: nas-docker
+            container: syncthing
+            showStats: true
+
+- NAS Apps:
+      - Synology Photos:
+            icon: synology-photos
+            href: https://photos.example.com
+            siteMonitor: https://10.0.10.nas-ip:7002
+            description: Photo management app
+
+      - Synology Drive:
+            icon: synology-drive
+            href: https://drive.example.com
+            siteMonitor: https://10.0.10.nas-ip:7003
+            description: File syncing and sharing
+
+      - MailPlus App:
+            icon: synology-mail-plus
+            href: https://mailapp.example.com
+            siteMonitor: https://10.0.10.nas-ip:7005
+            description: Webmail UI for MailPlus
+
+      - Active Backup Portal:
+            icon: synology-vmm
+            href: https://activebackup-portal.example.com
+            siteMonitor: https://10.0.10.nas-ip:7004
+            description: Backup management dashboard
+
+      - Synology Files:
+            icon: files
+            href: https://files.example.com
+            siteMonitor: https://10.0.10.nas-ip:7006
+            description: File access and management
+
+- Media Server:
+      - Plex:
+            icon: plex
+            href: https://app.plex.tv/desktop/#!/
+            description: Media server and streaming
+            server: ct-media
+            container: plex
+            showStats: true
+            widget:
+                type: plex
+                url: "{{HOMEPAGE_VAR_PLEX_URL}}"
+                key: "{{HOMEPAGE_VAR_PLEX_KEY}}"
+
+      - Overseerr:
+            icon: overseerr
+            href: https://overseerr.example.com
+            description: Request management and media discovery
+            server: ct-media
+            container: overseerr
+            showStats: true
+            widget:
+                type: overseerr
+                url: "{{HOMEPAGE_VAR_OVERSEERR_URL}}"
+                key: "{{HOMEPAGE_VAR_OVERSEERR_KEY}}"
+
+      - Radarr:
+            icon: radarr
+            href: "{{HOMEPAGE_VAR_RADARR_URL}}"
+            description: Movie collection manager
+            server: ct-media
+            container: radarr
+            showStats: true
+            widget:
+                type: radarr
+                url: "{{HOMEPAGE_VAR_RADARR_URL}}"
+                key: "{{HOMEPAGE_VAR_RADARR_KEY}}"
+                enableQueue: true
+
+      - Sonarr:
+            icon: sonarr
+            href: "{{HOMEPAGE_VAR_SONARR_URL}}"
+            description: TV series collection manager
+            server: ct-media
+            container: sonarr
+            showStats: true
+            widget:
+                type: sonarr
+                url: "{{HOMEPAGE_VAR_SONARR_URL}}"
+                key: "{{HOMEPAGE_VAR_SONARR_KEY}}"
+                enableQueue: true
+
+      - Prowlarr:
+            icon: prowlarr
+            href: "{{HOMEPAGE_VAR_PROWLARR_URL}}"
+            description: Indexer manager for Usenet and torrents
+            server: ct-media
+            container: prowlarr
+            showStats: true
+            widget:
+                type: prowlarr
+                url: "{{HOMEPAGE_VAR_PROWLARR_URL}}"
+                key: "{{HOMEPAGE_VAR_PROWLARR_KEY}}"
+
+      - Tdarr:
+            icon: tdarr
+            href: "{{HOMEPAGE_VAR_TDARR_URL}}"
+            description: Distributed media transcoding and library optimization tool
+            server: ct-media
+            container: tdarr
+            showStats: true
+            widget:
+                type: tdarr
+                url: "{{HOMEPAGE_VAR_TDARR_URL}}"
+                #key: tdarrapikey # optional
+
+- qBittorrent:
+      - qBittorrent:
+            icon: qbittorrent
+            href: "{{HOMEPAGE_VAR_QBITTORRENT_URL}}"
+            description: Torrent Client
+            server: ct-media
+            container: qbittorrent
+            showStats: true
+            widget:
+                type: qbittorrent
+                url: "{{HOMEPAGE_VAR_QBITTORRENT_URL}}"
+                username: "{{HOMEPAGE_VAR_QBITTORRENT_USERNAME}}"
+                password: "{{HOMEPAGE_VAR_QBITTORRENT_PASSWORD}}"
+                enableLeechProgress: true
+
+      - Gluetun:
+            icon: gluetun
+            href: https://airvpn.org/client/
+            description: VPN Tunnel Status
+            server: ct-media
+            container: gluetun
+            showStats: true
+            widget:
+                type: gluetun
+                url: "{{HOMEPAGE_VAR_GLUETUN_URL}}"
+                key: "{{HOMEPAGE_VAR_GLUETUN_KEY}}"
+
+- Utilities:
+      - Vaultwarden:
+            icon: bitwarden
+            href: "{{HOMEPAGE_VAR_VAULTWARDEN_NAS_REMOTE_URL}}"
+            description: Self-hosted Bitwarden alternative
+            server: ct-security
+            container: vaultwarden
+            showStats: true
+
+      - IT Tools:
+            icon: it-tools
+            href: https://it-tools.example.com
+            description: Dev and diagnostics toolkit
+            server: ct-utilities
+            container: it-tools
+            showStats: true
+
+      - MeTube:
+            icon: metube
+            href: http://10.0.10.106:8083/
+            description: Web UI for downloading videos via youtube-dl/yt-dlp
+            server: ct-media
+            container: metube
+            showStats: true
+
+      - FileBrowser:
+            icon: filebrowser
+            href: "{{HOMEPAGE_VAR_FILEBROWSER_PI_URL}}"
+            description: Browse files on the Pi
+            server: pi-server
+            container: filebrowser
+            showStats: true
+
+      - LibreTranslate:
+            icon: si-libretranslate-#49A8F6
+            href: "{{HOMEPAGE_VAR_LIBRETRANSLATE_REMOTE_URL}}"
+            description: Self-hosted translation backend
+            server: ct-utilities
+            container: libretranslate
+            showStats: true
+
+      #    - phpMyAdmin:
+      #        icon: phpmyadmin
+      #        href: https://phpmyadmin.example.com/
+      #        description: Web interface for MariaDB
+      #        server: ct-database
+      #        container: phpmyadmin
+      #        showStats: true
+
+      - OpenSpeedTest:
+            icon: openspeedtest
+            href: https://openspeedtest.example.com/
+            description: Network speed testing tool
+            server: ct-utilities
+            container: openspeedtest
+            showStats: true
+
+- Documentation & Tools:
+      - Homelab Documentation:
+            icon: si-materialformkdocs-#5069F3
+            href: https://docs.example.com
+            description: Personal homelab documentation
+
+      - UniFi Controller:
+            icon: unifi
+            href: https://10.0.4.1/network/default/dashboard
+            description: Manage UniFi network devices and settings
+
+      - Slack:
+            icon: slack
+            href: "{{HOMEPAGE_VAR_SLACK_URL}}"
+            description: Notifications channel for self‑hosted services
+
+      - Cloudflare:
+            icon: cloudflare
+            href: https://dash.cloudflare.com
+            description: Manage DNS and security settings

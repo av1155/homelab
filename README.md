@@ -75,6 +75,30 @@ _Proxmox Dashboard:_
 
 ---
 
+## 📈 Monitoring with Beszel
+
+**Beszel monitoring** provides real-time visibility into infrastructure health.
+
+### Features
+
+- **Agents deployed** on all LXC containers, the NAS (DS423+), and the Raspberry Pi quorum device.
+- Central **Beszel dashboard** for live metrics:
+    - CPU, memory, disk, network, GPU, load averages, and temperatures.
+- **SMTP-based alerting** for:
+    - System downtime (10m)
+    - CPU >80% (10m)
+    - Memory >80% (10m)
+    - Disk >80% (10m)
+    - Temperature >80°C (10m)
+
+### Benefits
+
+- Lightweight, modern monitoring with minimal overhead.
+- Complements Uptime Kuma and Dozzle by adding **resource-level alerting**.
+- Ensures early detection of hardware or resource saturation across the homelab.
+
+---
+
 ## 🔄 CI/CD
 
 This repository uses a **CI/CD pipeline** to ensure every stack stays **valid, secure, and ready for Portainer GitOps deployment**.

@@ -1,0 +1,45 @@
+---
+# For configuration options and examples, please see:
+# https://gethomepage.dev/configs/docker/
+
+# my-docker:
+#   host: 127.0.0.1
+#   port: 2375
+
+# Docker Socket Proxy
+nas-docker:
+    host: 10.0.10.nas-ip
+    port: 2375
+
+pi-server:
+    host: 10.0.10.pi-ip
+    port: 2375
+
+# Proxmox (All CT's run Docker Socket Proxy)
+ct-dns:
+    host: 10.0.10.ct-dns-ip
+    port: 2375
+
+ct-proxy:
+    host: 10.0.10.ct-proxy-ip
+    port: 2375
+
+ct-portainer:
+    host: 10.0.10.ct-portainer-ip
+    port: 2375
+
+ct-security:
+    host: 10.0.10.ct-security-ip
+    port: 2375
+
+# ct-database:
+# host: 10.0.10.ct-database-ip
+# port: 2375
+
+ct-utilities:
+    host: 10.0.10.ct-utilities-ip
+    port: 2375
+
+ct-media:
+    host: 10.0.10.ct-media-ip
+    port: 2375
