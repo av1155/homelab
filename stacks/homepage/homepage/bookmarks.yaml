@@ -1,0 +1,26 @@
+---
+# bookmarks.yaml — structured and Homepage-compatible
+
+- Developer:
+      - Github:
+            - icon: si-github
+              href: https://github.com/
+              description: >
+
+- Social:
+      - Reddit:
+            - icon: si-reddit
+              href: https://reddit.com/
+              description: >
+
+- Entertainment:
+      - YouTube:
+            - icon: si-youtube
+              href: https://youtube.com/
+              description: >
+
+- Personal:
+      - Portfolio:
+            - icon: si-codecrafters
+              href: https://www.andreaventi.com/
+              description: >
