@@ -6,8 +6,8 @@ services:
         ports:
             - 8090:8090
         volumes:
-            - /root/docker/beszel/beszel_data:/beszel_data
-            - /root/docker/beszel/beszel_socket:/beszel_socket
+            - /root/docker/utilities-stack/beszel/beszel_data:/beszel_data
+            - /root/docker/utilities-stack/beszel/beszel_socket:/beszel_socket
 
     uptimekuma:
         container_name: uptimekuma
