@@ -26,14 +26,14 @@
 
       - Beszel:
             icon: beszel
-            href: { { HOMEPAGE_VAR_BESZEL_URL } }
+            href: "{{HOMEPAGE_VAR_BESZEL_URL}}"
             description: System metrics and alerts
             server: ct-utilities
             container: beszel
             showStats: true
             widget:
                 type: beszel
-                url: { { HOMEPAGE_VAR_BESZEL_HOST_IP } }
+                url: "{{HOMEPAGE_VAR_BESZEL_HOST_IP}}"
                 username: "{{HOMEPAGE_VAR_BESZEL_USERNAME}}"
                 password: "{{HOMEPAGE_VAR_BESZEL_PASSWORD}}"
                 # systemId: ct-dns # optional
