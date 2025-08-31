@@ -1,4 +1,14 @@
 services:
+    beszel:
+        image: henrygd/beszel:latest
+        container_name: beszel
+        restart: always
+        ports:
+            - 8090:8090
+        volumes:
+            - /root/docker/utilities-stack/beszel/beszel_data:/beszel_data
+            - /root/docker/utilities-stack/beszel/beszel_socket:/beszel_socket
+
     uptimekuma:
         container_name: uptimekuma
         image: louislam/uptime-kuma:latest
