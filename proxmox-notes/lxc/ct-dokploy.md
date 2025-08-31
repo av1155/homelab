@@ -85,4 +85,15 @@ Only port `443` is needed open on your router for **all** apps.
 
 ---
 
-You're now ready to deploy and securely access unlimited web apps through a single public IP and port!
+## "Invalid Origin" Error When Logging In Fix
+
+Run the following command to fix it:
+
+```bash
+docker service update \
+  --env-rm ALLOWED_ORIGINS \
+  --env-add ALLOWED_ORIGINS=http://localhost:3000,https://dokploy.example.com \
+  dokploy
+```
+
+> Only use https://dokploy.example.com if you actually have it exposed to the internet via something like Nginx Proxy Manager.
