@@ -88,7 +88,7 @@ The homelab uses a **multi-layer monitoring stack** to provide real-time insight
     - Temperature >80°C (10m)
 
 _Beszel Dashboard:_  
-![Beszel Dashboard](assets/Beszel.png)
+![Beszel Dashboard](assets/Beszel.jpeg)
 
 ---
 
@@ -100,7 +100,7 @@ _Beszel Dashboard:_
 - Makes debugging and operational awareness fast and accessible.
 
 _Dozzle Logs View:_  
-![Dozzle Logs](assets/Dozzle.png)
+![Dozzle Logs](assets/Dozzle.jpeg)
 
 ---
 
@@ -113,7 +113,7 @@ _Dozzle Logs View:_
 - Complements Beszel (resource monitoring) and Dozzle (logs) with black-box availability monitoring.
 
 _Uptime Kuma Dashboard:_  
-![Uptime Kuma](assets/Uptime-Kuma.png)
+![Uptime Kuma](assets/Uptime-Kuma.jpeg)
 
 ---
 
