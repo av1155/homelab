@@ -57,15 +57,17 @@ _Proxmox Dashboard:_
     - Portainer runs in a dedicated highly available LXC, with **Portainer Agents deployed across all nodes/devices**, enabling centralized, single-interface management of the entire fleet
 
 - **Per-host baseline agents (host-level deployment, centrally controlled):**
-    - `portainer-agent` – centralized management
-    - `dozzle-agent` – node-local logs
-    - `docker-socket-proxy` – least-privilege Docker API
-    - `watchtower` – scheduled image updates + Slack reporting
+    - `portainer-agent` - centralized Docker management
+    - `beszel-agent` - metrics & alerting
+    - `dozzle-agent` - log aggregation
+    - `docker-socket-proxy` - secure Docker API access
+    - `watchtower` - scheduled image updates & Slack reporting
     - Deployed on **11 Docker environments** → contributes to the **fleet total of 29 stacks / 86 containers**
 
 - **CI/CD with Dokploy**
-    - Webhook-triggered builds for apps/sites
-    - Automated provisioning, scaling, DB backups to Cloudflare R2
+    - Webhook-triggered deployments for self-developed applications (Flask, Next.js, static sites, etc.), enabling seamless push-to-deploy workflows
+    - Docker Swarm cluster deployments with horizontal scaling via Dokploy agents
+    - **Automated database backups** stored in **Cloudflare R2 (S3-compatible object storage)**, ensuring durability and disaster recovery
 
 ---
 
