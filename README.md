@@ -28,8 +28,8 @@ This project is my **personal lab** and represents the real-world DevOps/SRE ski
 
 ## 📈 Stats at a Glance
 
-- **GitOps:** 11 stacks · 27 containers
-- **Portainer-managed fleet (all environments):** 29 stacks · 86 containers across 11 Docker environments
+- **GitOps:** 11 stacks · 28 containers
+- **Portainer-managed fleet (all environments):** 29 stacks · 95 containers across 11 Docker environments
 - **Resilience:** **RTO ≤ 3m** (Proxmox HA), **RPO ≈ 15m** (ZFS replication)
 - **Monitoring:** 64 checks in Uptime Kuma
 - **Availability snapshot:** Core infra **100%** · Exposed Services **99.79%** · Personal Websites **99.93%**
@@ -62,7 +62,7 @@ _Proxmox Dashboard:_
     - `dozzle-agent` - log aggregation
     - `docker-socket-proxy` - secure Docker API access
     - `watchtower` - scheduled image updates & Slack reporting
-    - Deployed on **11 Docker environments** → contributes to the **fleet total of 29 stacks / 86 containers**
+    - Deployed on **11 Docker environments** → contributes to the **fleet total of 29 stacks / 95 containers**
 
 - **CI/CD with Dokploy**
     - Webhook-triggered deployments for self-developed applications (Flask, Next.js, static sites, etc.), enabling seamless push-to-deploy workflows
@@ -87,7 +87,7 @@ The homelab uses a **multi-layer monitoring stack** to provide real-time insight
     - CPU >80% (10m)
     - Memory >80% (10m)
     - Disk >80% (10m)
-    - Temperature >80°C (10m)
+    - Temperature >85°C (10m)
 
 _Beszel Dashboard:_  
 ![Beszel Dashboard](assets/Beszel.jpeg)
