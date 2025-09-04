@@ -9,13 +9,13 @@ This guide walks through preparing a Proxmox VM for Kubernetes, setting up a sta
 ### Masters (3 nodes)
 
 - **CPU**: 2 vCPUs each
-- **RAM**: 4 GB each
+- **RAM**: 3 GB each
 - **Role**: Control-plane + etcd
 
 ### Workers (3 nodes)
 
 - **CPU**: 2 vCPUs each
-- **RAM**: 5 GB each
+- **RAM**: 4 GB each
 - **Role**: Application workloads (pods/services)
 
 ---
