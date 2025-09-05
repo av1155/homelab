@@ -1,6 +1,8 @@
-# Homelab Kubernetes Production Setup Plan
+# Homelab Kubernetes Production Setup
 
-This is the recommended step-by-step plan to get your cluster highly available, persistent, and observable.
+A step-by-step reference showing how this cluster was made **highly
+available, persistent, and observable**. The instructions below reflect
+the configuration that is running in the environment today.
 
 ---
 
@@ -8,21 +10,55 @@ This is the recommended step-by-step plan to get your cluster highly available, 
 
 - Cluster: kubeadm, 3× control-plane + 3× workers (✅)
 - CNI: Flannel (✅)
-- You’ll keep **TLS at Nginx Proxy Manager (NPM)** outside the cluster (simplest for you).  
-  → We’ll still use an in-cluster **Ingress Controller (NGINX)** and **MetalLB** for LB IPs, but TLS will terminate at NPM.
+- TLS termination at **Nginx Proxy Manager (NPM)** outside the cluster  
+  → In-cluster **NGINX Ingress Controller** + **MetalLB** provide ingress and LoadBalancer IPs; TLS terminates at NPM.
+
+## Network & Edge Access Model
+
+```text
+                ┌───────────────────────┐
+                │      Cloudflare       │
+                │ Proxy + DNS (A/CNAME) │
+                └──────────┬────────────┘
+                           │
+             *.example.com → Public Static IP
+                           │
+                    (Port 443 only)
+                           │
+                  ┌────────▼─────────┐
+                  │    Router/NAT    │
+                  └────────┬─────────┘
+                           │
+                ┌──────────▼────────────┐
+                │ Nginx Proxy Manager   │  (Proxmox LXC)
+                │ - TLS termination     │
+                │ - Cloudflare API certs│
+                │ - Auth (select apps)  │
+                └──────────┬────────────┘
+                           │
+              ┌────────────┴────────────┐
+              │                         │
+      ┌───────▼──────────┐       ┌──────▼──────────┐
+      │ K8s Ingress      │       │ Direct services │
+      │ (NGINX + MetalLB)│       │ (VPN, Mail, etc)│
+      │ Routes to Pods   │       │ Bypass NPM LB   │
+      └──────────────────┘       └─────────────────┘
+```
 
 ---
 
-## Homelab: kube-vip (control-plane VIP) on kubeadm (3 masters + 3 workers)
+## kube-vip (control-plane VIP) on kubeadm (3 masters + 3 workers)
 
-> **Goal:** Highly-available control-plane VIP at `10.0.10.200` using kube-vip **static pods** (ARP, control-plane only).  
-> **Context:** Cluster already running (Flannel CNI), containerd, kubeadm v1.33.4.
+> **Goal:** Provide a highly available control-plane VIP at
+> `10.0.10.200` using kube-vip **static pods** (ARP, control-plane only).  
+> **Context:** Cluster is already running (Flannel CNI), containerd,
+> kubeadm v1.33.4.
 
 ---
 
 ### 1) Quick VIP sanity (from master-01)
 
-Checks that the VIP is free on your LAN.
+Check that the VIP is free on the LAN.
 
 ```bash
 VIP=10.0.10.200
@@ -33,7 +69,7 @@ ping -c1 -W1 $VIP || echo "VIP not responding (good)"
 
 ### 2) Generate kube-vip static pod on **master-01**
 
-Writes the static pod manifest; kubelet will start it automatically.
+Write the static pod manifest; kubelet starts it automatically.
 
 ```bash
 sudo mkdir -p /etc/kubernetes/manifests
@@ -70,7 +106,7 @@ kubectl apply -f https://kube-vip.io/manifests/rbac.yaml
 
 ### 4) Generate kube-vip static pod on **master-02** and **master-03**
 
-Same commands on each of the other masters.
+Run the same commands on each of the other masters.
 
 **On master-02:**
 
@@ -116,7 +152,7 @@ kubectl -n kube-system get pods -o wide | grep kube-vip
 
 ### 5) Create kubeadm HA config (on **master-01**)
 
-Defines VIP endpoint and API SANs for all masters.
+Define the VIP endpoint and API SANs for all masters.
 
 ```bash
 sudo tee /root/kubeadm-ha.yaml >/dev/null <<'EOF'
@@ -149,7 +185,7 @@ sudo cat /root/kubeadm-ha.yaml
 
 ### 6) Rotate API certs + kubeconfigs to use the VIP — **master-01**
 
-Do this block on ONE master at a time; wait until Ready before moving on.
+Execute on one master at a time; wait until it is Ready before moving on.
 
 ```bash
 # Rotate apiserver cert to include VIP/DNS
@@ -181,7 +217,7 @@ sudo grep 'server:' -n /etc/kubernetes/admin.conf
 
 ### 7) Repeat cert/kubeconfig rotation — **master-02**
 
-Same block as master-01; run after master-01 is healthy.
+Run after master-01 is healthy.
 
 ```bash
 # Write config again
@@ -230,7 +266,7 @@ sudo grep 'server:' -n /etc/kubernetes/admin.conf
 
 ### 8) Repeat cert/kubeconfig rotation — **master-03**
 
-Same as above; run after master-02 is healthy.
+Run after master-02 is healthy.
 
 ```bash
 # Write config again
@@ -277,7 +313,7 @@ sudo grep 'server:' -n /etc/kubernetes/admin.conf
 
 ---
 
-### 9) External VIP test (from your Mac)
+### 9) External VIP test (from a client machine)
 
 ```bash
 curl -k https://10.0.10.200:6443/version
@@ -286,7 +322,7 @@ uname -a
 
 ---
 
-### 10) Final check (from any kubectl)
+### 10) Final checks (from any kubectl)
 
 ```bash
 kubectl -n kube-system get pods -o wide | grep kube-vip
@@ -343,7 +379,7 @@ helm install ingress ingress-nginx/ingress-nginx -n ingress-nginx \
   --set controller.replicaCount=2 \
   --set controller.service.type=LoadBalancer
 
-# watch for an External IP from 10.0.10.240–254
+# watch for an External IP from 10.0.10.240–10.0.10.254
 kubectl -n ingress-nginx get svc ingress-ingress-nginx-controller -w
 ```
 
@@ -353,7 +389,7 @@ kubectl -n ingress-nginx get svc ingress-ingress-nginx-controller -w
 
     **<INGRESS_EXTERNAL_IP>**:80 (TLS terminates at NPM, HTTP to cluster).
 
-### Verify MetalLB is healthy
+### Verify MetalLB health
 
 ```bash
 kubectl -n metallb-system get pods -o wide
@@ -365,7 +401,7 @@ kubectl -n metallb-system logs ds/metallb-speaker | tail -n 50
 
 ## 3) Longhorn (HA Storage)
 
-### Check Prerequisites (on all workers)
+### Check prerequisites (on all workers)
 
 Download the Longhorn CLI:
 
@@ -406,7 +442,7 @@ helm install longhorn longhorn/longhorn \
 
 ---
 
-If you want to limit replicas for the Longhorn UI, use the following method:
+(Optional) limit replicas for the Longhorn UI:
 
 ```bash
 mkdir -p ~/cluster-src/longhorn-system
@@ -418,7 +454,7 @@ longhornUI:
 EOF
 ```
 
-Install Longhorn:
+Install (or upgrade) using the custom values:
 
 ```bash
 # Add repo & install
@@ -462,7 +498,7 @@ longhorn-frontend   ClusterIP   10.20.245.110    <none>        80/TCP    58m
 
 ---
 
-### Assign a Static External IP (MetalLB)
+### Assign a static External IP (MetalLB)
 
 Check for available IPs:
 
@@ -502,7 +538,7 @@ kubectl get ipaddresspools -n metallb-system -o jsonpath='{.items[*].spec.addres
 }'
 ```
 
-Pick an IP from your MetalLB pool, then patch the service:
+Pick an IP from the MetalLB pool, then patch the service:
 
 ```bash
 kubectl -n longhorn-system patch svc longhorn-frontend \
@@ -511,7 +547,7 @@ kubectl -n longhorn-system patch svc longhorn-frontend \
 
 ---
 
-### Check if Longhorn is the Default StorageClass
+### Check if Longhorn is the default StorageClass
 
 ```bash
 kubectl get storageclass
@@ -529,7 +565,7 @@ kubectl get storageclass
 
 ---
 
-### A) Synology NAS Setup
+### A) Synology NAS setup
 
 0. **Enable NFS service (global)**
     - DSM → **Control Panel → File Services → NFS**
@@ -542,20 +578,20 @@ kubectl get storageclass
     - Enable **NFS** (Control Panel → Shared Folder → Edit → NFS Permissions).
 
 2. **NFS Permissions**:
-    - Allowed hosts: `10.0.10.0/24` (your homelab VLAN).
+    - Allowed hosts: `10.0.10.0/24` (homelab VLAN).
     - Privileges: `Read/Write`.
     - Squash: `No mapping` (or `Map all users to admin`).
     - Security: `sys`.
 
 3. **Apply settings**.
-    - Synology will expose path like:
+    - Synology exposes a path like:
         ```
         10.0.10.<NAS_IP>:/volume1/k8s-backups
         ```
 
 ---
 
-### B) Mount NFS on Control-Plane Nodes (for etcd snapshots)
+### B) Mount NFS on control-plane nodes (for etcd snapshots)
 
 On each master (`k8s-master-01`, `k8s-master-02`, `k8s-master-03`):
 
@@ -576,9 +612,9 @@ echo "10.0.10.<NAS_IP>:/volume1/k8s-backups /mnt/k8s-backups nfs defaults 0 0" |
 
 ---
 
-### C) etcd Snapshots to NAS
+### C) etcd snapshots to NAS
 
-Test snapshot on a master:
+Test a snapshot on a master:
 
 ```bash
 # Save snapshot to NAS-mounted path
@@ -590,7 +626,7 @@ sudo ETCDCTL_API=3 etcdctl \
   snapshot save /mnt/k8s-backups/etcd-snapshot-$(date +%Y%m%d-%H%M).db
 ```
 
-Verify file exists in `/mnt/k8s-backups`.
+Verify the file exists in `/mnt/k8s-backups`.
 
 #### Automate with cron
 
@@ -622,7 +658,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 0 3 * * * /usr/local/sbin/etcd-snapshot.sh
 ```
 
-Check NAS folder from NAS or via CLI:
+Check the NAS folder from NAS or via CLI:
 
 ```bash
 ls -lh /mnt/k8s-backups
@@ -630,30 +666,31 @@ ls -lh /mnt/k8s-backups
 
 ---
 
-### D) Longhorn Backups to NAS
+### D) Longhorn backups to NAS
 
 1. Open **Longhorn UI**.
 2. Go to **Settings → Backup Target**.
-3. Set to your NFS share:
+3. Set to the NFS share:
     ```
     nfs://10.0.10.<NAS_IP>:/volume1/k8s-backups/longhorn
     ```
-4. Leave **Backup Target Credential Secret** empty (NFS doesn’t need it).
-5. Test backup a PVC:
+4. Leave **Backup Target Credential Secret** empty (NFS does not require it).
+5. Test a PVC backup:
     - Create a PVC-backed pod, write data, then use **Longhorn → Volume → Create Backup**.
-    - Verify files appear in `k8s-backups/longhorn` on your NAS.
+    - Verify files appear in `k8s-backups/longhorn` on the NAS.
 
 ---
 
 ### E) (Optional) Velero with MinIO on NFS
 
-If you also want cluster-wide YAML + PVC backups:
+To capture cluster resources + PVCs:
 
 1. Deploy **MinIO** inside Kubernetes.
 2. Point MinIO’s dataDir at the NAS (`/volume1/k8s-backups/minio`).
 3. Install **Velero** using MinIO as S3 target.
 
-This lets Velero back up **resources + PVCs** in one command, while Longhorn handles volume snapshots underneath.
+Velero backs up **resources + PVCs** in one command, while Longhorn handles
+volume snapshots underneath.
 
 ---
 
@@ -667,21 +704,21 @@ This lets Velero back up **resources + PVCs** in one command, while Longhorn han
 
     → should show etcd snapshots.
 
-- From Synology DSM:
-  → you should see `etcd-snapshot-*` and `longhorn/` directories.
+- From Synology DSM: `etcd-snapshot-*` and `longhorn/` directories
+  should exist.
 
-- From Longhorn UI:
-  → Backups should list your PVC backups stored in NFS.
-
----
-
-## 5) Install Prometheus + Grafana (kube-prometheus-stack) on Your Cluster
-
-This guide matches what you’ve already done and pins persistence to **Longhorn**, exposes **Ingress** for NPM, and shows quick verification steps.
+- From Longhorn UI: backups should list PVC backups stored on NFS.
 
 ---
 
-### Prereqs
+## 5) Prometheus + Grafana (kube-prometheus-stack)
+
+This section pins persistence to **Longhorn**, exposes **Ingress** for NPM,
+and includes quick verification steps.
+
+---
+
+### Prerequisites
 
 - Kubernetes cluster up (✅)
 - MetalLB installed (✅) — ingress-nginx LB IP: `10.0.10.240`
@@ -691,7 +728,7 @@ This guide matches what you’ve already done and pins persistence to **Longhorn
 
 ---
 
-### 1) Add Helm repo (you already did)
+### 1) Add Helm repo
 
 ```bash
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
@@ -750,7 +787,7 @@ YAML
 
 ---
 
-### 3) Install / Upgrade the stack
+### 3) Install / upgrade the stack
 
 ```bash
 helm upgrade --install prometheus prometheus-community/kube-prometheus-stack \
@@ -758,7 +795,7 @@ helm upgrade --install prometheus prometheus-community/kube-prometheus-stack \
   -f ~/cluster-src/monitoring/values.yaml
 ```
 
-You should see `STATUS: deployed`.
+Expect `STATUS: deployed`.
 
 ---
 
@@ -787,17 +824,18 @@ Expected:
 
 ### 5) Wire through Nginx Proxy Manager (NPM)
 
-Create **two Proxy Hosts** in NPM, both pointing to your **ingress-nginx** IP:
+Create **two Proxy Hosts** in NPM, both pointing to the
+**ingress-nginx** IP:
 
 - **grafana.homelab.local** → `http://10.0.10.240:80`
 - **prometheus.homelab.local** → `http://10.0.10.240:80`
 
-Settings per host:
+Per-host settings:
 
-- SSL: your cert (Force SSL: on)
+- SSL: a certificate (Force SSL: on)
 - Websockets: on (helps Grafana)
 
-Ensure your LAN DNS points both hostnames to **NPM’s IP**.
+Ensure LAN DNS points both hostnames to **NPM’s IP**.
 
 ---
 
@@ -809,17 +847,19 @@ kubectl -n monitoring get secret prometheus-grafana \
 # user: admin
 ```
 
-Open https://grafana.homelab.local → log in → Dashboards.
-
-> Or http://grafana.homelab.local if no cert was used.
+Open https://grafana.homelab.local → log in → Dashboards.  
+(Or http://grafana.homelab.local if no cert was used.)
 
 ---
 
-### 7) Troubleshooting quickies
+### 7) Troubleshooting
 
-- **Ingress unreachable**: confirm ingress-nginx Service has External IP (`10.0.10.240`) and NPM forwards to `:80`.
-- **PVC Pending**: make sure `longhorn` is default and Longhorn is healthy.
-- **Grafana redirects weird**: set Helm value `grafana.env.GF_SERVER_ROOT_URL=https://grafana.homelab.local/` and upgrade.
+- **Ingress unreachable**: confirm ingress-nginx Service has an
+  External IP (`10.0.10.240`) and NPM forwards to `:80`.
+- **PVC Pending**: ensure `longhorn` is default and Longhorn is healthy.
+- **Grafana redirects**: set
+  `grafana.env.GF_SERVER_ROOT_URL=https://grafana.homelab.local/`
+  and upgrade.
 
 ---
 
@@ -831,19 +871,23 @@ helm upgrade prometheus prometheus-community/kube-prometheus-stack \
   -n monitoring -f ~/cluster-src/monitoring/values.yaml
 ```
 
-That’s it — you now have persistent Prometheus & Grafana behind your single ingress IP, fronted by NPM with TLS.
+Prometheus & Grafana run persistently behind a single ingress IP,
+fronted by NPM with TLS.
 
 ---
 
-## 6) Expose Longhorn UI via Ingress (Single Entry IP)
+## 6) Expose Longhorn UI via Ingress (single entry IP)
 
-This guide puts Longhorn behind your existing **ingress-nginx** LoadBalancer (`10.0.10.240`) so you can access it through Nginx Proxy Manager (NPM) with TLS and auth, reusing the same entry IP as Grafana/Prometheus.
+Expose Longhorn behind the existing **ingress-nginx** LoadBalancer
+(`10.0.10.240`), accessed through Nginx Proxy Manager (NPM) with TLS/auth,
+reusing the same entry IP as Grafana/Prometheus.
 
 ---
 
 ### 1) Ensure Longhorn frontend is ClusterIP
 
-If you previously patched `longhorn-frontend` with a `loadBalancerIP`, revert it to ClusterIP:
+If `longhorn-frontend` was previously patched with a `loadBalancerIP`,
+revert it to ClusterIP:
 
 ```bash
 kubectl -n longhorn-system patch svc longhorn-frontend \
@@ -893,7 +937,7 @@ Apply it:
 kubectl apply -f ~/cluster-src/longhorn-system/longhorn-ingress.yaml
 ```
 
-Ingress should show an address (the ingress-nginx LB IP 10.0.10.240)
+Ingress should show an address (the ingress-nginx LB IP 10.0.10.240):
 
 ```bash
 kubectl -n longhorn-system get ingress longhorn-ingress
@@ -901,9 +945,9 @@ kubectl -n longhorn-system get ingress longhorn-ingress
 
 ---
 
-### 3) Configure DNS or Host Entry
+### 3) Configure DNS or host entry
 
-Point your DNS (or `/etc/hosts`) to the **ingress-nginx LB IP**:
+Point DNS (or `/etc/hosts`) to the **ingress-nginx LB IP**:
 
 ```txt
 10.0.10.240   longhorn.homelab.local
@@ -911,7 +955,7 @@ Point your DNS (or `/etc/hosts`) to the **ingress-nginx LB IP**:
 
 ---
 
-### 4) Add Host in Nginx Proxy Manager
+### 4) Add host in Nginx Proxy Manager
 
 - **Domain Names:** `longhorn.homelab.local`
 - **Scheme:** `http`
@@ -919,30 +963,32 @@ Point your DNS (or `/etc/hosts`) to the **ingress-nginx LB IP**:
 - **Forward Port:** `80`
 - Enable **Block Common Exploits**
 - Enable **Websockets Support**
-- Add **TLS certificate** (Let's Encrypt or custom)
+- Add **TLS certificate** (Let’s Encrypt or custom)
 - (Optional) Attach an **Access List** for authentication.
 
 ---
 
 ### 5) Verify
 
-Open your browser:
+Open a browser:
 
 ```
 https://longhorn.homelab.local
 ```
 
-> Or http://longhorn.homelab.local if no cert was used.
+(Or `http://longhorn.homelab.local` if no cert was used.)
 
-You should see the Longhorn UI proxied through NPM, using the same ingress-nginx IP as your other cluster services.
-
----
-
-✅ Now Longhorn, Grafana, and Prometheus are all behind a single IP, secured consistently through NPM.
+The Longhorn UI should be proxied through NPM, using the same
+ingress-nginx IP as other cluster services.
 
 ---
 
-## 7) ArgoCD (GitOps)
+Now Longhorn, Grafana, and Prometheus are all behind a single IP,
+secured consistently through NPM.
+
+---
+
+## 7) Argo CD (GitOps)
 
 ### Ingress
 
@@ -979,7 +1025,7 @@ spec:
 ### Install
 
 ```bash
-# Install Argo CD (if you haven’t yet)
+# Install Argo CD (if not already present)
 kubectl create ns argocd
 kubectl -n argocd apply -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 
@@ -993,7 +1039,8 @@ kubectl -n argocd get svc argocd-server
 
 ### NPM
 
-- Add `argocd.homelab.local` → Ingress IP port 80 with TLS (add a cert so it is HTTPs)
+- Add `argocd.homelab.local` → Ingress IP port 80 with TLS
+  (attach a certificate for HTTPS).
 
 ### Initial login
 
@@ -1012,4 +1059,4 @@ kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.pas
 - **Backups:** etcd snapshots + Velero
 - **Ingress with TLS** (via NPM)
 - **Observability:** Grafana + Prometheus exposed
-- **GitOps:** ArgoCD managing workloads
+- **GitOps:** Argo CD managing workloads
