@@ -16,29 +16,38 @@ This project is my **personal lab** and represents the real-world DevOps/SRE ski
 
 ---
 
-## 🚀 Skills Snapshot
+## Key Docs
 
-- **Infrastructure & Clustering** – Proxmox HA, Kubernetes, Docker, ZFS, Synology NAS
-- **Automation & IaC** – GitOps, GitHub Actions, Portainer Stacks, Dokploy, (planned: Terraform modules for Cloudflare/AWS)
-- **Observability & Ops** – Uptime Kuma, Dozzle, Kestra, (planned: Prometheus + Grafana)
-- **Networking & Security** – Cloudflare Zero Trust, VLANs, WireGuard VPN, firewalls
-- **Backup & DR** – ZFS replication, NAS + cloud sync, Cloudflare R2 object storage
+- [**Kubernetes Production Setup**](./kubernetes/README.md)  
+  Step-by-step HA cluster config: kube-vip, MetalLB, Longhorn, backups, Prometheus/Grafana, Argo CD.
+- [**Homelab Inventory & Cloud Cost Comparison**](./homelab_inventory.md)  
+  Hardware, one-time spend, AWS-equivalent monthly cost, and 3-year savings.
 
 ---
 
-## 📈 Stats at a Glance
+## Skills Snapshot
+
+- **Infrastructure & Clustering** – Proxmox HA, Kubernetes, Docker, ZFS, Synology NAS, Longhorn
+- **Automation & IaC** – GitOps, Argo CD, GitHub Actions, Portainer GitOps, Dokploy, (planned: Terraform modules and Ansible Playbooks for Proxmox/AWS)
+- **Observability & Ops** – Prometheus + Grafana, Beszel, Uptime Kuma, Dozzle, Kestra
+- **Networking & Security** – Cloudflare Proxy + Zero Trust, NPM (LXC) with in-cluster NGINX Ingress + MetalLB, AdGuard Home (dual DNS), VLAN segmentation, WireGuard VPN, firewall rules
+- **Backup & DR** – ZFS replication, Synology NAS (Hyper Backup + cloud sync), Cloudflare R2 off-site storage
+
+---
+
+## Stats at a Glance
 
 - **GitOps:** 11 stacks · 28 containers
 - **Portainer-managed fleet (all environments):** 29 stacks · 95 containers across 11 Docker environments
 - **Resilience:** **RTO ≤ 3m** (Proxmox HA), **RPO ≈ 15m** (ZFS replication)
-- **Monitoring:** 64 checks in Uptime Kuma
+- **Monitoring:** Prometheus + Grafana dashboards · 64 checks in Uptime Kuma · 10 hosts in Dozzle · 10 systems in Beszel
 - **Availability snapshot:** Core infra **100%** · Exposed Services **99.79%** · Personal Websites **99.93%**
 
 ---
 
-## 🖥️ Compute & Clustering
+## Compute & Clustering
 
-- **Proxmox 2-node HA cluster** with Raspberry Pi quorum device (HA failover; ZFS snapshots/replication)
+- **Proxmox 3-node HA cluster** (HA failover; ZFS snapshots/replication) → 40 vCPUs, 96 GB RAM
 - **Workload separation**:
     - **LXCs** → lightweight Dockerized services (Portainer managed)
     - **VMs** → Kubernetes cluster (**3 control planes + 3 workers**)
@@ -48,112 +57,101 @@ _Proxmox Dashboard:_
 
 ---
 
-## ⚙️ Deployment & Automation
+## Kubernetes Cluster
 
-- **GitOps with Portainer**
-    - Stacks reconciled directly from GitHub
-    - GitHub Actions: linting, Compose validation, secret scanning (TruffleHog)
-    - Host-level secret injection (no secrets in Git)
-    - Portainer runs in a dedicated highly available LXC, with **Portainer Agents deployed across all nodes/devices**, enabling centralized, single-interface management of the entire fleet
+- **Cluster type:** kubeadm, 3 control planes + 3 workers (running on Proxmox VMs)
+- **Networking:** Flannel CNI, MetalLB for LoadBalancer IPs, NGINX Ingress
+- **Storage:** Longhorn HA volumes, backed up to Synology NAS (NFS)
+- **Observability:** Prometheus + Grafana, with persistent dashboards
+- **GitOps:** Argo CD for application lifecycle
+- **Edge:** TLS terminates at Nginx Proxy Manager, fronted by Cloudflare proxy/DNS
 
-- **Per-host baseline agents (host-level deployment, centrally controlled):**
-    - `portainer-agent` - centralized Docker management
-    - `beszel-agent` - metrics & alerting
-    - `dozzle-agent` - log aggregation
-    - `docker-socket-proxy` - secure Docker API access
-    - `watchtower` - scheduled image updates & Slack reporting
-    - Deployed on **11 Docker environments** → contributes to the **fleet total of 29 stacks / 95 containers**
-
-- **CI/CD with Dokploy**
-    - Webhook-triggered deployments for self-developed applications (Flask, Next.js, static sites, etc.), enabling seamless push-to-deploy workflows
-    - Docker Swarm cluster deployments with horizontal scaling via Dokploy agents
-    - **Automated database backups** stored in **Cloudflare R2 (S3-compatible object storage)**, ensuring durability and disaster recovery
+👉 [Full K8s config](./kubernetes/README.md)
 
 ---
 
-## 📈 Monitoring & Observability
+## Deployment & Automation
 
-The homelab uses a **multi-layer monitoring stack** to provide real-time insights into infrastructure, containers, and uptime.
+- **GitOps with Portainer**
+    - Stacks reconciled directly from GitHub
+    - GitHub Actions: linting, Compose validation, secret scanning (TruffleHog), image scanning (Trivy)
+    - Host-level secret injection (no secrets in Git)
+    - Portainer runs in a dedicated HA LXC, with **Portainer Agents + baseline agents** deployed across all nodes/devices:
+        - `portainer-agent` – centralized Docker management
+        - `beszel-agent` – metrics & alerting
+        - `dozzle-agent` – log aggregation
+        - `docker-socket-proxy` – secure Docker API access
+        - `watchtower` – automated updates & Slack reporting  
+          **Deployed on 11 Docker environments → 29 stacks / 95 containers total**
 
-### 🖥️ Beszel
+- **CI/CD with Dokploy**
+    - Webhook-triggered deployments for custom apps (Flask, Next.js, static sites, etc.)
+    - Docker Swarm cluster deployments with horizontal scaling
+    - Automated DB backups stored in **Cloudflare R2 (S3-compatible)** for durability & DR
 
-**Beszel** provides lightweight, modern monitoring and alerting.
+---
 
-- **Agents deployed** on all LXC containers, the NAS (DS423+), and the Raspberry Pi quorum device.
-- Central dashboard for metrics:
-    - CPU, memory, disk, network, GPU, load averages, and temperatures.
-- **SMTP-based alerting** thresholds:
-    - System downtime (10m)
-    - CPU >80% (10m)
-    - Memory >80% (10m)
-    - Disk >80% (10m)
-    - Temperature >85°C (10m)
+## Monitoring & Observability
+
+The homelab uses a **multi-layer monitoring stack** for real-time metrics, logs, uptime, and dashboards — combining **Prometheus + Grafana, Beszel, Dozzle, and Uptime Kuma**.  
+This provides **end-to-end visibility**, proactive SMTP alerts, and lightweight dashboards.
+
+### Prometheus + Grafana
+
+- Collects cluster-wide metrics (Kubernetes, containers, nodes)
+- Grafana dashboards for long-term visibility and troubleshooting
+- Persistent storage ensures historical metrics are retained across restarts
+
+_Grafana Dashboard:_  
+![Grafana Dashboard](assets/Grafana.jpeg)
+
+### Beszel
+
+- **Agents deployed** on all LXCs, the NAS (DS423+), and the Raspberry Pi
+- Tracks CPU, memory, disk, network, GPU, load averages, and temperatures
+- Alert thresholds: downtime (10m), CPU >80%, memory >80%, disk >80%, temp >85°C
 
 _Beszel Dashboard:_  
 ![Beszel Dashboard](assets/Beszel.jpeg)
 
----
+### Dozzle
 
-### 📜 Dozzle
-
-**Dozzle** gives real-time visibility into Docker container logs.
-
-- **Dozzle Agents** run on all nodes, forwarding logs to a central dashboard.
-- Makes debugging and operational awareness fast and accessible.
+- Centralized Docker log visibility via lightweight agents
+- Enables quick debugging and operational awareness
 
 _Dozzle Logs View:_  
 ![Dozzle Logs](assets/Dozzle.jpeg)
 
----
+### Uptime Kuma
 
-### 🌍 Uptime Kuma
-
-**Uptime Kuma** provides external and internal uptime monitoring.
-
-- Tracks availability of exposed services, internal apps, and infrastructure components.
-- 64 checks configured for homelab services.
-- Complements Beszel (resource monitoring) and Dozzle (logs) with black-box availability monitoring.
+- External + internal uptime checks for services and infrastructure
+- 64 checks configured, complementing Beszel + Dozzle
 
 _Uptime Kuma Dashboard:_  
 ![Uptime Kuma](assets/Uptime-Kuma.jpeg)
 
 ---
 
-### 🔑 Benefits
-
-- **End-to-end visibility**: metrics (Beszel), logs (Dozzle), uptime checks (Kuma).
-- **Proactive alerts**: SMTP + dashboards ensure quick detection of failures.
-- **Lightweight + modern**: minimal resource footprint, highly integrated.
-
----
-
-## 🔄 CI/CD
+## CI/CD
 
 This repository uses a **CI/CD pipeline** to ensure every stack stays **valid, secure, and ready for Portainer GitOps deployment**.
 
 ### What’s enforced
 
-- **Workflow & docs linting** – consistent workflows and clean documentation.
-- **YAML & Compose checks** – validate syntax and Docker Compose configs per stack.
-- **Secrets scanning** – block commits containing verified secrets.
-- **Image scanning** – weekly Trivy runs detect CRITICAL CVEs in container images.
-- **Code scanning** – CodeQL enforces no critical security alerts.
-- **Sticky failures** – broken stacks remain flagged until fixed, preventing regressions.
+- **Workflow & docs linting** – consistent workflows and clean documentation
+- **YAML & Compose checks** – validate syntax and Docker Compose configs per stack
+- **Secrets scanning** – block commits containing verified secrets
+- **Image scanning** – weekly Trivy runs detect CRITICAL CVEs
+- **Code scanning** – CodeQL ensures no critical security alerts
 
 ### Why it matters
 
-- Portainer GitOps only deploys **healthy stacks**, reducing drift and risk.
-- Security and quality gates surface issues early, before merge.
-
-### Auto-merge
-
-- PRs from `@av1155` are squashed into `main` automatically once all CI gates and branch ruleset checks pass.
-
-**Result:** `main` always reflects a deployable, validated state.
+- Portainer GitOps only deploys **healthy stacks**, reducing drift and risk
+- Security and quality gates surface issues early, before merge
 
 ---
 
-## 🌐 Networking & Security
+## Networking & Security
 
 - **Ubiquiti UniFi Express 7 router** + 2.5GbE managed switch (VLAN segmentation)
 - **Cloudflare Integration**
@@ -165,7 +163,7 @@ This repository uses a **CI/CD pipeline** to ensure every stack stays **valid, s
 
 ---
 
-## 💾 Storage & Backups
+## Storage & Backups
 
 - **ZFS NVMe pools** on each node → snapshots + HA replication
 - **Synology DS423+ NAS** (2×12TB HDD SHR + dual NVMe SSD)
@@ -181,7 +179,7 @@ _Homelab Dashboard:_
 
 ---
 
-## 📊 Design Principles
+## Design Principles
 
 - **Resilient by default** – HA cluster, replication, automated failover
 - **Security-first** – VLAN isolation, Zero Trust, VPN ingress, firewall rules
@@ -190,7 +188,7 @@ _Homelab Dashboard:_
 
 ---
 
-## 🏁 Outcomes
+## Outcomes
 
 This homelab proves I can:
 
@@ -225,8 +223,7 @@ Here’s a quick overview (full configs in [`stacks/`](stacks/)):
 
 ## Planned Additions
 
-- **Infrastructure as Code** – Terraform modules (Cloudflare + AWS RDS/S3)
-- **Observability Stack** – Prometheus + Grafana + Loki demo deployment
+- **Infrastructure as Code** – Terraform modules and Ansible playbooks for Proxmox and AWS
 
 ---
 
