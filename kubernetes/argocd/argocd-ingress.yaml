@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+    name: argocd
+    namespace: argocd
+    annotations:
+        nginx.ingress.kubernetes.io/backend-protocol: "HTTPS" # ingress → service over HTTPS
+        nginx.ingress.kubernetes.io/ssl-redirect: "false" # NPM terminates TLS; keep HTTP between NPM and ingress
+        nginx.ingress.kubernetes.io/proxy-real-ip-cidr: "10.0.10.0/24" # optional: tighten from 0.0.0.0/0
+spec:
+    ingressClassName: nginx
+    rules:
+        - host: argocd.homelab.local
+          http:
+              paths:
+                  - path: /
+                    pathType: Prefix
+                    backend:
+                        service:
+                            name: argocd-server
+                            port:
+                                number: 443

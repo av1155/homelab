@@ -1,0 +1,34 @@
+grafana:
+    persistence:
+        enabled: true
+        storageClassName: longhorn
+        size: 5Gi
+    ingress:
+        enabled: true
+        ingressClassName: nginx
+        hosts: ["grafana.homelab.local"]
+        path: /
+prometheus:
+    prometheusSpec:
+        retention: 15d
+        storageSpec:
+            volumeClaimTemplate:
+                spec:
+                    storageClassName: longhorn
+                    resources:
+                        requests:
+                            storage: 5Gi
+    ingress:
+        enabled: true
+        ingressClassName: nginx
+        hosts: ["prometheus.homelab.local"]
+        paths: ["/"]
+alertmanager:
+    alertmanagerSpec:
+        storage:
+            volumeClaimTemplate:
+                spec:
+                    storageClassName: longhorn
+                    resources:
+                        requests:
+                            storage: 2Gi
