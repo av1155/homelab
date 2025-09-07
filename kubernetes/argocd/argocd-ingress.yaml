@@ -4,9 +4,9 @@ metadata:
     name: argocd
     namespace: argocd
     annotations:
-        nginx.ingress.kubernetes.io/backend-protocol: "HTTPS" # ingress → service over HTTPS
-        nginx.ingress.kubernetes.io/ssl-redirect: "false" # NPM terminates TLS; keep HTTP between NPM and ingress
-        nginx.ingress.kubernetes.io/proxy-real-ip-cidr: "10.0.10.0/24" # optional: tighten from 0.0.0.0/0
+        nginx.ingress.kubernetes.io/backend-protocol: "HTTPS" # ingress -> service over HTTPS (avoids 80->443 redirects)
+        nginx.ingress.kubernetes.io/ssl-redirect: "false" # TLS terminates at NPM
+        nginx.ingress.kubernetes.io/proxy-real-ip-cidr: "10.0.10.0/24" # adjust to your LAN
 spec:
     ingressClassName: nginx
     rules:
