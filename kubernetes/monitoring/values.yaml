@@ -1,16 +1,27 @@
 grafana:
+    env:
+        GF_SERVER_ROOT_URL: http://grafana.homelab.local/
     persistence:
-        enabled: true
-        storageClassName: longhorn
-        size: 5Gi
+        enabled: false
+    grafana.ini:
+        session:
+            provider: database
+        database:
+            type: postgres
+            host: postgres.monitoring.svc.cluster.local:5432
+            name: grafana
+            user: grafana
+            ssl_mode: disable
+    envFromSecret: grafana-db
     ingress:
         enabled: true
         ingressClassName: nginx
         hosts: ["grafana.homelab.local"]
         path: /
+
 prometheus:
     prometheusSpec:
-        retention: 15d
+        retention: 7d
         storageSpec:
             volumeClaimTemplate:
                 spec:
@@ -23,6 +34,7 @@ prometheus:
         ingressClassName: nginx
         hosts: ["prometheus.homelab.local"]
         paths: ["/"]
+
 alertmanager:
     alertmanagerSpec:
         storage:

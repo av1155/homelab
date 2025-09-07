@@ -1,0 +1,88 @@
+apiVersion: v1
+kind: Service
+metadata:
+    name: postgres
+    namespace: monitoring
+spec:
+    clusterIP: None
+    ports:
+        - name: pg
+          port: 5432
+          targetPort: 5432
+    selector:
+        app: postgres
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+    name: postgres
+    namespace: monitoring
+spec:
+    serviceName: postgres
+    replicas: 1
+    selector:
+        matchLabels:
+            app: postgres
+    template:
+        metadata:
+            labels:
+                app: postgres
+        spec:
+            terminationGracePeriodSeconds: 60
+            securityContext:
+                fsGroup: 999
+                fsGroupChangePolicy: "OnRootMismatch"
+            initContainers:
+                - name: init-perms
+                  image: busybox:1.36
+                  command:
+                      - sh
+                      - -lc
+                      - >
+                          mkdir -p /vol/pgdata &&
+                          chown -R 999:999 /vol/pgdata
+                  volumeMounts:
+                      - name: data
+                        mountPath: /vol
+            containers:
+                - name: postgres
+                  image: postgres:16
+                  securityContext:
+                      runAsUser: 999
+                      runAsGroup: 999
+                  ports:
+                      - name: pg
+                        containerPort: 5432
+                  envFrom:
+                      - secretRef:
+                            name: postgres-auth
+                  env:
+                      - name: PGDATA
+                        value: /var/lib/postgresql/data
+                  volumeMounts:
+                      - name: data
+                        mountPath: /var/lib/postgresql/data
+                        subPath: pgdata
+                  readinessProbe:
+                      exec:
+                          command: ["sh", "-lc", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
+                      initialDelaySeconds: 10
+                      periodSeconds: 5
+                  livenessProbe:
+                      exec:
+                          command: ["sh", "-lc", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
+                      initialDelaySeconds: 20
+                      periodSeconds: 10
+                  resources:
+                      requests:
+                          cpu: "100m"
+                          memory: "256Mi"
+    volumeClaimTemplates:
+        - metadata:
+              name: data
+          spec:
+              accessModes: ["ReadWriteOnce"]
+              storageClassName: longhorn
+              resources:
+                  requests:
+                      storage: 5Gi

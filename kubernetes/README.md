@@ -4,13 +4,17 @@ A step-by-step reference showing how this cluster was made **highly
 available, persistent, and observable**. The instructions below reflect
 the configuration that is running in the environment today.
 
+> **Quick links:**  
+> • [Create LAN wildcard cert (mkcert)](#a-create-a-lan-only-wildcard-cert-with-mkcert-example-uses-macbook)  
+> • [Upload cert to Nginx Proxy Manager (NPM)](#b-upload-the-cert-to-nginx-proxy-manager-npm)
+
 ---
 
 ## 0) Assumptions
 
 - Cluster: kubeadm, 3× control-plane + 3× workers (✅)
 - CNI: Flannel (✅)
-- TLS termination at **Nginx Proxy Manager (NPM)** outside the cluster  
+- TLS termination at **Nginx Proxy Manager (NPM)** outside the cluster ([cert setup](#b-upload-the-cert-to-nginx-proxy-manager-npm))  
   → In-cluster **NGINX Ingress Controller** + **MetalLB** provide ingress and LoadBalancer IPs; TLS terminates at NPM.
 
 ## Network & Edge Access Model
@@ -711,170 +715,256 @@ volume snapshots underneath.
 
 ---
 
-## 5) Prometheus + Grafana (kube-prometheus-stack)
+## 5) Prometheus + Grafana
 
-This section pins persistence to **Longhorn**, exposes **Ingress** for NPM,
-and includes quick verification steps.
+This deploys kube-prometheus-stack with:
 
----
+- **Grafana → PostgreSQL** (no SQLite on PVC)
+- **Prometheus → Longhorn PVC** (7-day retention)
+- **Alertmanager → Longhorn PVC**
+- Ingress via **ingress-nginx**, fronted by NPM (HTTP between NPM <-> ingress)
 
 ### Prerequisites
 
-- Kubernetes cluster up (✅)
-- MetalLB installed (✅) — ingress-nginx LB IP: `10.0.10.240`
-- ingress-nginx installed (✅)
-- Longhorn installed and **default** StorageClass (✅)
-- Helm repos updated (✅)
+- Longhorn is default StorageClass and healthy
+- ingress-nginx LB IP (MetalLB) is `10.0.10.240`
+- Namespace: `monitoring`
 
+### A) Create secrets
+
+`~/cluster-src/monitoring/postgres-auth-secret.yaml`
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+    name: postgres-auth
+    namespace: monitoring
+type: Opaque
+stringData:
+    POSTGRES_DB: grafana
+    POSTGRES_USER: grafana
+    POSTGRES_PASSWORD: ChangeMe1234
+```
+
+`~/cluster-src/monitoring/grafana-db-secret.yaml`
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+    name: grafana-db
+    namespace: monitoring
+type: Opaque
+stringData:
+    GF_DATABASE_PASSWORD: ChangeMe1234
+```
+
+Apply:
+
+```bash
+kubectl apply -f ~/cluster-src/monitoring/postgres-auth-secret.yaml
+kubectl apply -f ~/cluster-src/monitoring/grafana-db-secret.yaml
+```
+
+### B) Deploy PostgreSQL (StatefulSet on Longhorn)
+
+`~/cluster-src/monitoring/postgres.yaml`
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+    name: postgres
+    namespace: monitoring
+spec:
+    clusterIP: None
+    ports:
+        - name: pg
+          port: 5432
+          targetPort: 5432
+    selector:
+        app: postgres
 ---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+    name: postgres
+    namespace: monitoring
+spec:
+    serviceName: postgres
+    replicas: 1
+    selector:
+        matchLabels:
+            app: postgres
+    template:
+        metadata:
+            labels:
+                app: postgres
+        spec:
+            terminationGracePeriodSeconds: 60
+            securityContext:
+                fsGroup: 999
+                fsGroupChangePolicy: "OnRootMismatch"
+            initContainers:
+                - name: init-perms
+                  image: busybox:1.36
+                  command:
+                      - sh
+                      - -lc
+                      - >
+                          mkdir -p /vol/pgdata &&
+                          chown -R 999:999 /vol/pgdata
+                  volumeMounts:
+                      - name: data
+                        mountPath: /vol
+            containers:
+                - name: postgres
+                  image: postgres:16
+                  securityContext:
+                      runAsUser: 999
+                      runAsGroup: 999
+                  ports:
+                      - name: pg
+                        containerPort: 5432
+                  envFrom:
+                      - secretRef:
+                            name: postgres-auth
+                  env:
+                      - name: PGDATA
+                        value: /var/lib/postgresql/data
+                  volumeMounts:
+                      - name: data
+                        mountPath: /var/lib/postgresql/data
+                        subPath: pgdata
+                  readinessProbe:
+                      exec:
+                          command: ["sh", "-lc", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
+                      initialDelaySeconds: 10
+                      periodSeconds: 5
+                  livenessProbe:
+                      exec:
+                          command: ["sh", "-lc", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
+                      initialDelaySeconds: 20
+                      periodSeconds: 10
+                  resources:
+                      requests:
+                          cpu: "100m"
+                          memory: "256Mi"
+    volumeClaimTemplates:
+        - metadata:
+              name: data
+          spec:
+              accessModes: ["ReadWriteOnce"]
+              storageClassName: longhorn
+              resources:
+                  requests:
+                      storage: 5Gi
+```
 
-### 1) Add Helm repo
+Apply & wait:
+
+```bash
+kubectl apply -f ~/cluster-src/monitoring/postgres.yaml
+kubectl -n monitoring rollout status sts/postgres
+```
+
+### C) Helm values for kube-prometheus-stack
+
+`~/cluster-src/monitoring/values.yaml`
+
+```yaml
+grafana:
+    env:
+        GF_SERVER_ROOT_URL: http://grafana.homelab.local/
+    persistence:
+        enabled: false
+    grafana.ini:
+        session:
+            provider: database
+        database:
+            type: postgres
+            host: postgres.monitoring.svc.cluster.local:5432
+            name: grafana
+            user: grafana
+            ssl_mode: disable
+    envFromSecret: grafana-db
+    ingress:
+        enabled: true
+        ingressClassName: nginx
+        hosts: ["grafana.homelab.local"]
+        path: /
+
+prometheus:
+    prometheusSpec:
+        retention: 7d
+        storageSpec:
+            volumeClaimTemplate:
+                spec:
+                    storageClassName: longhorn
+                    resources:
+                        requests:
+                            storage: 5Gi
+    ingress:
+        enabled: true
+        ingressClassName: nginx
+        hosts: ["prometheus.homelab.local"]
+        paths: ["/"]
+
+alertmanager:
+    alertmanagerSpec:
+        storage:
+            volumeClaimTemplate:
+                spec:
+                    storageClassName: longhorn
+                    resources:
+                        requests:
+                            storage: 2Gi
+```
+
+Install/upgrade:
 
 ```bash
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm repo update
-```
-
-Optional check:
-
-```bash
-helm search repo prometheus-community/kube-prometheus-stack
-```
-
----
-
-### 2) Create values file (persistence + ingress)
-
-```bash
-mkdir -p ~/cluster-src/monitoring
-cat > ~/cluster-src/monitoring/values.yaml <<'YAML'
-grafana:
-  persistence:
-    enabled: true
-    storageClassName: longhorn
-    size: 5Gi
-  ingress:
-    enabled: true
-    ingressClassName: nginx
-    hosts: [ "grafana.homelab.local" ]
-    path: /
-prometheus:
-  prometheusSpec:
-    retention: 15d
-    storageSpec:
-      volumeClaimTemplate:
-        spec:
-          storageClassName: longhorn
-          resources:
-            requests:
-              storage: 5Gi
-  ingress:
-    enabled: true
-    ingressClassName: nginx
-    hosts: [ "prometheus.homelab.local" ]
-    paths: [ "/" ]
-alertmanager:
-  alertmanagerSpec:
-    storage:
-      volumeClaimTemplate:
-        spec:
-          storageClassName: longhorn
-          resources:
-            requests:
-              storage: 2Gi
-YAML
-```
-
----
-
-### 3) Install / upgrade the stack
-
-```bash
-helm upgrade --install prometheus prometheus-community/kube-prometheus-stack \
+helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
   -n monitoring --create-namespace \
   -f ~/cluster-src/monitoring/values.yaml
 ```
 
-Expect `STATUS: deployed`.
+### D) Ingress + NPM
 
----
+- NPM Proxy Hosts:
+    - **grafana.homelab.local** → `http://10.0.10.240:80`
+    - **prometheus.homelab.local** → `http://10.0.10.240:80`
+- LAN DNS rewrite for **\*.homelab.local** points both hostnames to the **NPM** IP.
 
-### 4) Verify resources
-
-```bash
-# Pods should become Running
-kubectl -n monitoring get pods
-
-# PVCs should be Bound on Longhorn
-kubectl -n monitoring get pvc -o wide
-
-# Ingresses created by the chart
-kubectl -n monitoring get ingress
-```
-
-Expected:
-
-- Grafana and Prometheus pods in `Running`
-- PVCs bound with StorageClass `longhorn`
-- Ingress hosts:
-    - `grafana.homelab.local`
-    - `prometheus.homelab.local`
-
----
-
-### 5) Wire through Nginx Proxy Manager (NPM)
-
-Create **two Proxy Hosts** in NPM, both pointing to the
-**ingress-nginx** IP:
-
-- **grafana.homelab.local** → `http://10.0.10.240:80`
-- **prometheus.homelab.local** → `http://10.0.10.240:80`
-
-Per-host settings:
-
-- SSL: a certificate (Force SSL: on)
-- Websockets: on (helps Grafana)
-
-Ensure LAN DNS points both hostnames to **NPM’s IP**.
-
----
-
-### 6) First Grafana login
+### E) Verification
 
 ```bash
-kubectl -n monitoring get secret prometheus-grafana \
-  -o jsonpath='{.data.admin-password}' | base64 -d; echo
-# user: admin
+kubectl -n monitoring get pods,pvc,ingress
+
+# Expect postgres in Running and grafana showing postgres, not sqlite:
+kubectl -n monitoring logs deploy/monitoring-grafana | egrep -i 'dbtype|postgres|sqlite'
+
+# External checks
+curl -sS http://grafana.homelab.local/api/health | jq .
+curl -sS http://prometheus.homelab.local/-/ready
 ```
 
-Open https://grafana.homelab.local → log in → Dashboards.  
-(Or http://grafana.homelab.local if no cert was used.)
+### F) Cleanup (if migrating from SQLite)
 
----
-
-### 7) Troubleshooting
-
-- **Ingress unreachable**: confirm ingress-nginx Service has an
-  External IP (`10.0.10.240`) and NPM forwards to `:80`.
-- **PVC Pending**: ensure `longhorn` is default and Longhorn is healthy.
-- **Grafana redirects**: set
-  `grafana.env.GF_SERVER_ROOT_URL=https://grafana.homelab.local/`
-  and upgrade.
-
----
-
-### 8) Upgrades later
+If a legacy Grafana PVC exists, delete it now:
 
 ```bash
-helm repo update
-helm upgrade prometheus prometheus-community/kube-prometheus-stack \
-  -n monitoring -f ~/cluster-src/monitoring/values.yaml
+kubectl -n monitoring get pvc
 ```
 
-Prometheus & Grafana run persistently behind a single ingress IP,
-fronted by NPM with TLS.
+If it exists:
 
----
+```bash
+kubectl -n monitoring delete pvc monitoring-grafana --ignore-not-found
+```
 
 ## 6) Expose Longhorn UI via Ingress (single entry IP)
 
@@ -963,7 +1053,9 @@ Point DNS (or `/etc/hosts`) to the **ingress-nginx LB IP**:
 - **Forward Port:** `80`
 - Enable **Block Common Exploits**
 - Enable **Websockets Support**
-- Add **TLS certificate** (Let’s Encrypt or custom)
+- Either:
+    - Choose "None" as the **TLS certificate**
+    - Add **TLS certificate** (Let’s Encrypt or custom)
 - (Optional) Attach an **Access List** for authentication.
 
 ---
@@ -990,73 +1082,109 @@ secured consistently through NPM.
 
 ## 7) Argo CD (GitOps)
 
-### Ingress
+### A) Create a LAN-only wildcard cert with `mkcert` (example uses MacBook)
+
+```bash
+# trust a local CA on MacBook (system/Firefox/Java)
+mkcert -install
+
+# issue a wildcard cert for your LAN domain
+mkcert "*.homelab.local"
+
+# outputs (examples):
+#   _wildcard.homelab.local.pem        <- certificate
+#   _wildcard.homelab.local-key.pem    <- private key
+```
+
+### B) Upload the cert to **Nginx Proxy Manager** (NPM)
+
+- NPM → **SSL Certificates** → **Add SSL Certificate** → **Custom**
+    - **Name:** `*.homelab.local`
+    - **Certificate Key:** upload `_wildcard.homelab.local-key.pem`
+    - **Certificate:** upload `_wildcard.homelab.local.pem`
+    - Save.
+
+### C) Create the Argo CD Ingress (TLS stays at NPM)
 
 ```bash
 mkdir -p ~/cluster-src/argocd
-nano ~/cluster-src/argocd/argocd-ingress.yaml
-```
-
-```yaml
+cat > ~/cluster-src/argocd/argocd-ingress.yaml <<'YAML'
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-    name: argocd
-    namespace: argocd
-    annotations:
-        nginx.ingress.kubernetes.io/backend-protocol: "HTTPS" # ingress → service over HTTPS
-        nginx.ingress.kubernetes.io/ssl-redirect: "false" # NPM terminates TLS; keep HTTP between NPM and ingress
-        nginx.ingress.kubernetes.io/proxy-real-ip-cidr: "10.0.10.0/24" # optional: tighten from 0.0.0.0/0
+  name: argocd
+  namespace: argocd
+  annotations:
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"   # ingress -> service over HTTPS (avoids 80->443 redirects)
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"       # TLS terminates at NPM
+    nginx.ingress.kubernetes.io/proxy-real-ip-cidr: "10.0.10.0/24"  # adjust to your LAN
 spec:
-    ingressClassName: nginx
-    rules:
-        - host: argocd.homelab.local
-          http:
-              paths:
-                  - path: /
-                    pathType: Prefix
-                    backend:
-                        service:
-                            name: argocd-server
-                            port:
-                                number: 443
-```
+  ingressClassName: nginx
+  rules:
+  - host: argocd.homelab.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: argocd-server
+            port:
+              number: 443
+YAML
 
-### Install
-
-```bash
-# Install Argo CD (if not already present)
-kubectl create ns argocd
+# install Argo CD if not already present
+kubectl create ns argocd 2>/dev/null || true
 kubectl -n argocd apply -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 
-# Apply ingress
+# apply ingress
 kubectl apply -f ~/cluster-src/argocd/argocd-ingress.yaml
-
-# Verify
-kubectl -n argocd get ingress
-kubectl -n argocd get svc argocd-server
 ```
 
-### NPM
+### D) Configure the NPM Proxy Host
 
-- Add `argocd.homelab.local` → Ingress IP port 80 with TLS
-  (attach a certificate for HTTPS).
+- **Hosts → Add Proxy Host**
+    - **Domain Names:** `argocd.homelab.local`
+    - **Scheme:** `http`
+    - **Forward Hostname/IP:** `<INGRESS_LB_IP>` (e.g. `10.0.10.240`)
+    - **Forward Port:** `80`
+    - **Enable**: _Block Common Exploits_, _Websockets Support_
+    - **SSL tab:** select your custom cert `*.homelab.local`
+        - Force SSL
+        - HSTS Enabled
+        - HTTP/2 Support
+    - Save.
 
-### Initial login
+### E) Verify & first login
 
 ```bash
+# verify K8s objects
+kubectl -n argocd get ingress
+kubectl -n argocd get svc argocd-server
+
+# get initial admin password
 kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d; echo
 # username: admin
 ```
 
+Open `https://argocd.homelab.local` in your browser (your MacBook already trusts the mkcert CA).
+
+> **CLI note (simple path):** For `argocd` CLI without extra ingress tweaks, use a temporary port-forward:
+>
+> ```bash
+> kubectl -n argocd port-forward svc/argocd-server 8080:80
+> argocd login localhost:8080 --insecure
+> ```
+>
+> (If you want CLI through NPM later, consider nginx **ssl-passthrough** or a dedicated gRPC ingress/host.)
+
 ---
 
-# ✅ Outcome
+## ✅ Outcome
 
-- **HA control-plane** with VIP
-- **LoadBalancer IPs** for services
+- **HA control-plane** with kube-vip
+- **LoadBalancer IPs** via MetalLB (`10.0.10.240` for ingress-nginx)
 - **HA storage** via Longhorn
-- **Backups:** etcd snapshots + Velero
-- **Ingress with TLS** (via NPM)
-- **Observability:** Grafana + Prometheus exposed
-- **GitOps:** Argo CD managing workloads
+- **Backups:** etcd snapshots + Longhorn backups (NAS)
+- **Observability:** Grafana on **Postgres**, Prometheus on **Longhorn**, both via ingress/NPM
+- **GitOps:** Argo CD
