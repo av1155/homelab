@@ -327,7 +327,7 @@
 - Utilities:
       - Vaultwarden:
             icon: bitwarden
-            href: "{{HOMEPAGE_VAR_VAULTWARDEN_NAS_REMOTE_URL}}"
+            href: "{{HOMEPAGE_VAR_VAULTWARDEN_REMOTE_URL}}"
             description: Self-hosted Bitwarden alternative
             server: ct-security
             container: vaultwarden
