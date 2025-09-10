@@ -10,19 +10,16 @@ services:
             - TZ=America/New_York
             - UPDATER_PERIOD=24h
             - HEALTH_VPN_DURATION_INITIAL=120s
-
-            # VPN Configuration
+            # VPN
             - VPN_SERVICE_PROVIDER=airvpn
             - VPN_TYPE=wireguard
             - WIREGUARD_PRIVATE_KEY=${WIREGUARD_PRIVATE_KEY}
             - WIREGUARD_PRESHARED_KEY=${WIREGUARD_PRESHARED_KEY}
             - WIREGUARD_ADDRESSES=${WIREGUARD_ADDRESSES}
             - SERVER_COUNTRIES=United States
-
-            # Firewall Rules
+            # Firewall
             - FIREWALL_OUTBOUND_SUBNETS=${FIREWALL_OUTBOUND_SUBNETS}
-            - FIREWALL_VPN_INPUT_PORTS=6881,14439 # qBittorrent, and opened port from AirVPN (read README.txt)
-            # - FIREWALL_DEBUG=on
+            - FIREWALL_VPN_INPUT_PORTS=6881,14439
         ports:
             - 8000:8000 # Gluetun HTTP Control Server
             - 9865:9865 # qBittorrent Web UI
@@ -35,7 +32,6 @@ services:
             - com.centurylinklabs.watchtower.enable=false
         security_opt:
             - no-new-privileges:true
-            - apparmor=unconfined
         volumes:
             - /root/docker/media-vpn-stack/gluetun:/gluetun
             - /root/docker/media-vpn-stack/gluetun/auth/config.toml:/gluetun/auth/config.toml
@@ -52,8 +48,6 @@ services:
         container_name: qbittorrent
         environment:
             - TZ=America/New_York
-            - PUID=0
-            - PGID=1000
             - WEBUI_PORT=9865
             - TORRENTING_PORT=${FIREWALL_VPN_INPUT_PORTS} # AirVPN Forwarded Port
         network_mode: service:gluetun
@@ -61,7 +55,6 @@ services:
             - deunhealth.restart.on.unhealthy=true
         security_opt:
             - no-new-privileges:true
-            - apparmor=unconfined
         volumes:
             - /root/docker/media-vpn-stack/qbittorrent/config:/config
             - /mnt/nas-media/Downloads:/downloads
@@ -84,7 +77,6 @@ services:
             echo 'DNS working. Starting qBittorrent.';
             exec /init
             "
-
         tty: true
         restart: always
         healthcheck:
@@ -102,8 +94,6 @@ services:
             - LOG_LEVEL=info
             - HEALTH_SERVER_ADDRESS=127.0.0.1:9999
             - TZ=America/New_York
-        restart: always
-        security_opt:
-            - apparmor=unconfined
         volumes:
             - /var/run/docker.sock:/var/run/docker.sock
+        restart: always
