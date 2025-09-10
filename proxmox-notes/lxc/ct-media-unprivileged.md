@@ -104,19 +104,19 @@ On a Synology NAS:
     Make the mountpoint:
 
     ```bash
-    mkdir -p /mnt/nas-media-test
+    mkdir -p /mnt/nas-media
     ```
 
     Add to `/etc/fstab`:
 
     ```bash
-    <YOUR-NAS-IP>:/volume1/media-test /mnt/nas-media-test nfs defaults,_netdev,nofail,x-systemd.automount 0 0
+    <YOUR-NAS-IP>:/volume1/media-test /mnt/nas-media nfs defaults,_netdev,nofail,x-systemd.automount 0 0
     ```
 
     > If you have NFS 4.1 enabled in settings, then use the following instead:
     >
     > ```bash
-    > <YOUR-NAS-IP>:/volume1/media-test /mnt/nas-media-test nfs vers=4.1,_netdev,nofail,x-systemd.automount 0 0
+    > <YOUR-NAS-IP>:/volume1/media-test /mnt/nas-media nfs vers=4.1,_netdev,nofail,x-systemd.automount 0 0
     > ```
 
     Mount immediately (without reboot):
@@ -128,8 +128,8 @@ On a Synology NAS:
     Check:
 
     ```bash
-    df -h | grep nas-media-test
-    ls -ld /mnt/nas-media-test
+    df -h | grep nas-media
+    ls -ld /mnt/nas-media
     ```
 
 2. Pass it into your unprivileged CT
@@ -137,10 +137,10 @@ On a Synology NAS:
     Edit `/etc/pve/lxc/<vmid>.conf`:
 
     ```txt
-    lxc.mount.entry: /mnt/nas-media-test mnt/nas-media-test none bind,create=dir
+    lxc.mount.entry: /mnt/nas-media mnt/nas-media none bind,create=dir
     ```
 
-    Inside the CT you’ll now see it as `/mnt/nas-media-test`.
+    Inside the CT you’ll now see it as `/mnt/nas-media`.
 
 ---
 
@@ -243,7 +243,7 @@ dev2: /dev/net/tun
 
 ## Docker Container Environment (inside CT)
 
-At this point, Docker can see both `/mnt/nas-media-test` and the GPU/TUN devices.  
+At this point, Docker can see both `/mnt/nas-media` and the GPU/TUN devices.  
 Sample docker-compose snippet for Plex:
 
 ```yaml
@@ -258,7 +258,7 @@ services:
             - PUID=0
             - PGID=0
         volumes:
-            - /mnt/nas-media-test:/media
+            - /mnt/nas-media:/media
             - /root/docker/plex:/config
 ```
 
@@ -291,7 +291,7 @@ Set in Plex Web UI:
 This ensures:
 
 - **RAM (`/ram-transcode`)** is used for fast, temporary transcodes during streaming.
-- **NFS (`/nfs-transcode`)** is used for transcoded downloads until clients fetch them, keeping large files off RAM.---
+- **NFS (`/nfs-transcode`)** is used for transcoded downloads until clients fetch them, keeping large files off RAM.
 
 ---
 
