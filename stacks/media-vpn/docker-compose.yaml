@@ -48,6 +48,8 @@ services:
         container_name: qbittorrent
         environment:
             - TZ=America/New_York
+            - PUID=0
+            - PGID=0
             - WEBUI_PORT=9865
             - TORRENTING_PORT=${FIREWALL_VPN_INPUT_PORTS} # AirVPN Forwarded Port
         network_mode: service:gluetun
