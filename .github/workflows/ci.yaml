@@ -186,11 +186,8 @@ jobs:
 
                   ALL_NAMES="$(printf "%s\n%s\n" "$CHANGED_NAMES" "$BROKEN_NAMES" | awk NF | sort -u)"
 
-                  EXISTING_NAMES="$(printf "%s\n" "$ALL_NAMES" | awk NF | while read -r n; do [[ -d "${STACKS_DIR}/$n" ]] && echo "$n"; done | sort -u)"
-                  MISSING_NAMES="$(printf "%s\n" "$ALL_NAMES" | awk NF | while read -r n; do [[ ! -d "${STACKS_DIR}/$n" ]] && echo "$n"; done | sort -u)"
-
-                  if [[ -n "$EXISTING_NAMES" ]]; then
-                    MATRIX="$(jq -n --arg s "$EXISTING_NAMES" '($s|split("\n")|map(select(length>0))) | {stack: .}')"
+                  if [[ -n "$ALL_NAMES" ]]; then
+                    MATRIX="$(jq -n --arg s "$ALL_NAMES" '($s|split("\n")|map(select(length>0))) | {stack: .}')"
                     {
                       echo "matrix<<EOF"
                       echo "$MATRIX"
@@ -204,13 +201,10 @@ jobs:
 
                   {
                     echo "## 🔍 Change Detection"
-                    if [[ -n "$EXISTING_NAMES" ]]; then
-                      echo "- Stacks to validate: \`$(echo "$EXISTING_NAMES" | tr '\n' ' ')\` ✅"
+                    if [[ -n "$ALL_NAMES" ]]; then
+                      echo "- Stacks to validate: \`$(echo "$ALL_NAMES" | tr '\n' ' ')\` ✅"
                     else
                       echo "- No stacks to validate ✅"
-                    fi
-                    if [[ -n "$MISSING_NAMES" ]]; then
-                      echo "- Skipping removed/renamed stacks (not on disk): \`$(echo "$MISSING_NAMES" | tr '\n' ' ')\`"
                     fi
                   } >> "$GITHUB_STEP_SUMMARY"
 
@@ -227,34 +221,21 @@ jobs:
             - name: Checkout
               uses: actions/checkout@v4
 
-            - name: Check if stack directory exists
-              id: exists
-              run: |
-                  if [[ ! -d "${STACKS_DIR}/${{ matrix.stack }}" ]]; then
-                    echo "skip=true" >> "$GITHUB_OUTPUT"
-                  else
-                    echo "skip=false" >> "$GITHUB_OUTPUT"
-                  fi
-
             - name: Set up Docker Buildx
-              if: steps.exists.outputs.skip != 'true'
               uses: docker/setup-buildx-action@v3
 
             - name: Install tools (yamllint, jq)
-              if: steps.exists.outputs.skip != 'true'
               run: |
                   set -euo pipefail
                   sudo apt-get update
                   sudo apt-get install -y yamllint jq
 
             - name: Lint YAML in ${{ env.STACKS_DIR }}/${{ matrix.stack }}
-              if: steps.exists.outputs.skip != 'true'
               run: |
                   set -euo pipefail
                   yamllint "${STACKS_DIR}/${{ matrix.stack }}" 2>&1 | tee yamllint.log
 
             - name: Validate docker-compose files in ${{ env.STACKS_DIR }}/${{ matrix.stack }}
-              if: steps.exists.outputs.skip != 'true'
               run: |
                   set -euo pipefail
                   mapfile -d '' files < <(find "${STACKS_DIR}/${{ matrix.stack }}" -name "docker-compose.yaml" -print0 || true)
@@ -279,9 +260,7 @@ jobs:
               run: |
                   {
                     echo "### ✅ Validation summary for \`${STACKS_DIR}/${{ matrix.stack }}\`"
-                    if [[ "${{ steps.exists.outputs.skip }}" == "true" ]]; then
-                      echo "- Skipped: directory not found (likely renamed or removed)"
-                    elif [[ "${{ job.status }}" == "success" ]]; then
+                    if [[ "${{ job.status }}" == "success" ]]; then
                       echo "- YAML lint ✅"
                       echo "- Compose config ✅"
                     else
@@ -312,12 +291,7 @@ jobs:
                     echo '{"stack":[]}' > .ci/_broken.json
                   fi
 
-                  # If the directory is gone, remove it from cache.
-                  if [[ "${{ steps.exists.outputs.skip }}" == "true" ]]; then
-                    jq --arg s "${{ matrix.stack }}" \
-                      ' .stack -= [ $s ] | {stack: ( .stack // [] | unique ) }' \
-                      .ci/_broken.json > "${BROKEN_CACHE_PATH}"
-                  elif [[ "${{ job.status }}" == "success" ]]; then
+                  if [[ "${{ job.status }}" == "success" ]]; then
                     jq --arg s "${{ matrix.stack }}" \
                       ' .stack -= [ $s ] | {stack: ( .stack // [] | unique ) }' \
                       .ci/_broken.json > "${BROKEN_CACHE_PATH}"
@@ -336,7 +310,7 @@ jobs:
                   retention-days: 3
 
             - name: Upload validation logs (on failure)
-              if: failure() && steps.exists.outputs.skip != 'true' && (hashFiles('compose-validate.log','yamllint.log') != '')
+              if: failure() && (hashFiles('compose-validate.log','yamllint.log') != '')
               uses: actions/upload-artifact@v4
               with:
                   name: validation-logs-${{ matrix.stack }}-${{ github.run_id }}-${{ github.run_attempt }}
@@ -390,6 +364,7 @@ jobs:
                     echo "[]" > .ci/_merged.list
                   fi
 
+                  # Helpers to add/remove a single stack from the merged list
                   add_stack() {
                     jq -c --arg s "$1" '. + [$s] | unique' .ci/_merged.list > .ci/_tmp.list
                     mv .ci/_tmp.list .ci/_merged.list
@@ -399,8 +374,9 @@ jobs:
                     mv .ci/_tmp.list .ci/_merged.list
                   }
 
-                  # Merge artifact parts
+                  # Find all broken-stacks.json files in any artifact
                   while IFS= read -r -d '' f; do
+                    # Walk up until we find the artifact directory named "broken-stacks-part-*"
                     artifact_dir="$(dirname "$f")"
                     stack=""
                     while [[ "$artifact_dir" != "/" && "$artifact_dir" != "." ]]; do
@@ -421,34 +397,18 @@ jobs:
                     fi
 
                     if jq -e --arg s "$stack" '(.stack // []) | index($s)' "$f" >/dev/null; then
-                      add_stack "$stack"
+                      jq -c --arg s "$stack" '. + [$s] | unique' .ci/_merged.list > .ci/_tmp.list
+                      mv .ci/_tmp.list .ci/_merged.list
                       echo "Added $stack (from $f)"
                     else
-                      remove_stack "$stack"
+                      jq -c --arg s "$stack" 'map(select(. != $s))' .ci/_merged.list > .ci/_tmp.list
+                      mv .ci/_tmp.list .ci/_merged.list
                       echo "Removed $stack (from $f)"
                     fi
                   done < <(find .ci/parts -type f -name broken-stacks.json -print0)
 
                   # Write final merged cache
                   jq -c '{stack: .}' .ci/_merged.list > "${BROKEN_CACHE_PATH}"
-
-                  if [[ -f "${BROKEN_CACHE_PATH}" ]]; then
-                    mapfile -t _cur < <(jq -r '.stack[]?' "${BROKEN_CACHE_PATH}" 2>/dev/null || true)
-                    : > .ci/_keep.list
-                    for s in "${_cur[@]}"; do
-                      if [[ -d "${STACKS_DIR}/${s}" ]]; then
-                        echo "$s" >> .ci/_keep.list
-                      else
-                        echo "Pruned non-existent stack from cache: $s"
-                      fi
-                    done
-                    jq -c '{stack: ( [inputs] | map(select(length>0)) )}' .ci/_keep.list > "${BROKEN_CACHE_PATH}" <<<""
-                    # If keep.list is empty, ensure proper shape
-                    if [[ ! -s "${BROKEN_CACHE_PATH}" ]]; then
-                      echo '{"stack":[]}' > "${BROKEN_CACHE_PATH}"
-                    fi
-                  fi
-
                   echo "Merged cache:"; cat "${BROKEN_CACHE_PATH}"
 
                   # Sanity check: ensure file has correct shape
@@ -518,11 +478,14 @@ jobs:
                     head -n 10 images.txt | sed 's/^/- /' || true
                   } >> "$GITHUB_STEP_SUMMARY"
 
+            # --- Weekly cache key (ISO week) ---
             - name: Compute cache epoch (weekly)
               run: |
                   set -euo pipefail
+                  # ISO week: YYYY-WW (e.g., 2025-34), zero-padded week
                   echo "CACHE_EPOCH=$(date -u +%G-%V)" >> "$GITHUB_ENV"
 
+            # --- Restore for everyone (PRs, branches, main, schedule) ---
             - name: Restore Trivy DB cache
               id: trivy_restore
               uses: actions/cache/restore@v4
@@ -552,6 +515,7 @@ jobs:
                   done < images.txt
                   (( failed == 0 ))
 
+            # --- Save ONLY from schedule/manual on main AND only on a miss ---
             - name: Save Trivy DB cache
               if: ${{ (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')) && steps.trivy_restore.outputs.cache-hit != 'true' }}
               uses: actions/cache/save@v4
@@ -559,6 +523,7 @@ jobs:
                   path: ~/.cache/trivy
                   key: trivy-db-${{ runner.os }}-W${{ env.CACHE_EPOCH }}-v1
 
+            # --- Keep only the latest 4 weekly caches per OS ---
             - name: Prune old Trivy caches (keep last 4)
               env:
                   GH_TOKEN: ${{ github.token }}
@@ -567,7 +532,9 @@ jobs:
                   sudo apt-get update -y
                   sudo apt-get install -y jq >/dev/null 2>&1 || true
 
+                  # Ensure gh (GitHub CLI) is available
                   if ! command -v gh >/dev/null; then
+                    # Add official GitHub CLI apt repo (Ubuntu 24.04)
                     curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
                       | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
                     sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
@@ -577,17 +544,20 @@ jobs:
                     sudo apt-get install -y gh || { echo "WARN: gh install failed; skipping prune."; exit 0; }
                   fi
 
+                  # Cache extension (idempotent)
                   gh extension install actions/gh-actions-cache || true
 
                   REPO="${GITHUB_REPOSITORY}"
                   PREFIX="trivy-db-${RUNNER_OS}-"
 
+                  # List cache keys, filter by prefix, sort ascending (oldest first)
                   keys=$(gh actions-cache list -R "$REPO" \
                     | awk '{print $1}' \
                     | grep -E "^${PREFIX}" \
                     | sort || true)
 
                   keep=4
+                  # Delete all but the newest $keep
                   to_delete=$(printf "%s\n" "$keys" | awk 'NF' | tail -n +"$((keep+1))" || true)
 
                   if [[ -n "${to_delete}" ]]; then
@@ -633,6 +603,8 @@ jobs:
             - name: Evaluate required jobs
               run: |
                   set -euo pipefail
+
+                  # Jobs that must succeed to pass the gate:
                   declare -A RES=(
                     [meta_lint]="${{ needs.meta_lint.result }}"
                     [security_secrets]="${{ needs.security_secrets.result }}"
@@ -640,23 +612,31 @@ jobs:
                     [validate_stacks]="${{ needs.validate_stacks.result }}"
                     [persist_broken_cache]="${{ needs.persist_broken_cache.result }}"
                   )
+
                   fail=0
+
                   require_success () {
                     local name="$1" res="$2"
+
+                    # Special rule: treat "validate_stacks=skipped" as success (no changed stacks)
                     if [[ "$name" == "validate_stacks" && "$res" == "skipped" ]]; then
                       return 0
                     fi
+
                     if [[ "$res" != "success" ]]; then
                       echo "::error title=Gate failed::Job '${name}' result: ${res}"
                       fail=1
                     fi
                   }
+
                   for name in "${!RES[@]}"; do
                     require_success "$name" "${RES[$name]}"
                   done
+
                   {
                     echo "### ✅ Verified Summary (CI Gate)"
                     for name in meta_lint security_secrets security_images validate_stacks persist_broken_cache; do
+
                       res="${RES[$name]}"
                       sym="✅"
                       if [[ "$res" != "success" && ! ( "$name" == "validate_stacks" && "$res" == "skipped" ) ]]; then
@@ -665,4 +645,5 @@ jobs:
                       echo "- **${name}**: \`${res}\` $sym"
                     done
                   } >> "$GITHUB_STEP_SUMMARY"
+
                   exit $fail
