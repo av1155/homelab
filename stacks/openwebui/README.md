@@ -1,6 +1,19 @@
 # OpenWebUI Setup
 
-## Step 1: Generate Initial Configuration
+## Ollama Setup
+
+Install the native Ollama version on macOS:
+
+```bash
+brew install ollama
+brew services start ollama
+```
+
+OpenWebUI will automatically detect it later.
+
+## Configure SearXNG for Web Search support
+
+### Step 1: Generate Initial Configuration
 
 Run the following command so that **searxng** generates the `settings.yml` file:
 
@@ -10,7 +23,7 @@ docker compose up -d ; sleep 10 ; docker compose down
 
 ---
 
-## Step 2: Edit `settings.yml`
+### Step 2: Edit `settings.yml`
 
 Open and modify the configuration file:
 
@@ -20,7 +33,7 @@ sed -i .bak '/- html/a\
 ' searxng/settings.yml
 ```
 
-### Verify the output:
+#### Verify the output:
 
 ```bash
 grep -A3 'formats:' searxng/settings.yml
@@ -28,7 +41,7 @@ grep -A3 'formats:' searxng/settings.yml
 
 ---
 
-## Step 3: Update Security and Server Settings
+### Step 3: Update Security and Server Settings
 
 Generate a secure key:
 
@@ -48,7 +61,7 @@ Bind the server to all interfaces:
 sed -i .bak '/^server:/,/^[^[:space:]]/ s/^\([[:space:]]*bind_address:\).*/\1 "0.0.0.0"/' searxng/settings.yml
 ```
 
-### Verify the changes:
+#### Verify the changes:
 
 ```bash
 grep -nE '^(server:|[[:space:]]+port:|[[:space:]]+bind_address:)' searxng/settings.yml
@@ -56,7 +69,7 @@ grep -nE '^(server:|[[:space:]]+port:|[[:space:]]+bind_address:)' searxng/settin
 
 ---
 
-## Step 4: Download `limiter.toml`
+### Step 4: Download `limiter.toml`
 
 ```bash
 cd searxng
@@ -65,7 +78,7 @@ curl --remote-name https://raw.githubusercontent.com/searxng/searxng-docker/refs
 
 ---
 
-## Step 5: (Optional) Fix Hugging Face CAS 403 Errors
+### Step 5: (Optional) Fix Hugging Face CAS 403 Errors
 
 If you encounter errors like:
 
