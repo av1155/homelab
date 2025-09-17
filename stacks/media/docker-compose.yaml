@@ -118,16 +118,16 @@ services:
             - /mnt/tdarr-cache:/temp
         restart: unless-stopped
 
-    recyclarr:
-        image: ghcr.io/recyclarr/recyclarr:latest
-        container_name: recyclarr
-        environment:
-            - TZ=America/New_York
-            - PUID=0
-            - PGID=0
-        volumes:
-            - /root/docker/media-stack/recyclarr/config:/config
-        restart: unless-stopped
+    # recyclarr: # Replaced by Profilarr
+    #     image: ghcr.io/recyclarr/recyclarr:latest
+    #     container_name: recyclarr
+    #     environment:
+    #         - TZ=America/New_York
+    #         - PUID=0
+    #         - PGID=0
+    #     volumes:
+    #         - /root/docker/media-stack/recyclarr/config:/config
+    #     restart: unless-stopped
 
     profilarr:
         image: santiagosayshey/profilarr:latest
