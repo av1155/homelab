@@ -21,7 +21,9 @@ grafana:
 
 prometheus:
     prometheusSpec:
-        retention: 7d
+        retention: 1d
+        retentionSize: 4.5GB
+        walCompression: true
         storageSpec:
             volumeClaimTemplate:
                 spec:
