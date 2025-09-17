@@ -129,6 +129,19 @@ services:
             - /root/docker/media-stack/recyclarr/config:/config
         restart: unless-stopped
 
+    profilarr:
+        image: santiagosayshey/profilarr:latest
+        container_name: profilarr
+        ports:
+            - "6868:6868"
+        volumes:
+            - /root/docker/media-stack/profilarr/config:/config
+        environment:
+            - TZ=America/New_York
+            - PUID=0
+            - PGID=0
+        restart: unless-stopped
+
     flaresolverr:
         image: 21hsmw/flaresolverr:nodriver
         container_name: flaresolverr
