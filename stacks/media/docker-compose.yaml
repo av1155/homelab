@@ -107,9 +107,10 @@ services:
             - inContainer=true
             - ffmpegVersion=7
             - nodeName=internal-node
-            - auth=false
-            - openBrowser=true
+            - auth=true
+            - openBrowser=false
             - maxLogSizeMB=10
+            - cronPluginUpdate="0 0 * * *" # Daily at midnight
         volumes:
             - /root/docker/media-stack/tdarr/server:/app/server
             - /root/docker/media-stack/tdarr/configs:/app/configs
