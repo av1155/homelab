@@ -103,6 +103,7 @@ services:
             - serverIP=0.0.0.0
             - serverPort=8266
             - webUIPort=8265
+            - serverURL=${TDARR_SERVER_URL}
             - internalNode=true
             - inContainer=true
             - ffmpegVersion=7
@@ -111,7 +112,7 @@ services:
             - apiKey=${TDARR_NODE_KEY} # Generated from Tools -> API Keys after creating a user and signing in
             - openBrowser=false
             - maxLogSizeMB=10
-            - cronPluginUpdate="0 0 * * *" # Daily at midnight
+            - cronPluginUpdate=0 0 * * * # Daily at midnight
         volumes:
             - /root/docker/media-stack/tdarr/server:/app/server
             - /root/docker/media-stack/tdarr/configs:/app/configs
