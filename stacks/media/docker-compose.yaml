@@ -108,6 +108,7 @@ services:
             - ffmpegVersion=7
             - nodeName=internal-node
             - auth=true
+            - apiKey=${TDARR_NODE_KEY} # Generated from Tools -> API Keys after creating a user and signing in
             - openBrowser=false
             - maxLogSizeMB=10
             - cronPluginUpdate="0 0 * * *" # Daily at midnight
