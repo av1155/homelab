@@ -15,7 +15,7 @@
       - Proxmox VE:
             icon: proxmox
             href: "{{HOMEPAGE_VAR_PROXMOX_URL}}"
-            siteMonitor: https://10.0.10.pve-ip:8006
+            siteMonitor: https://10.0.10.PVE-IP:8006
             description: Proxmox Virtual Environment
             widget:
                 type: proxmox
@@ -162,7 +162,7 @@
       - Synology NAS DS423+ | HDD:
             icon: synology
             href: https://nas.example.com
-            siteMonitor: https://10.0.10.nas-ip:5001
+            siteMonitor: https://10.0.10.NAS-IP:5001
             description: Volume 1
             widget:
                 type: diskstation
@@ -174,7 +174,7 @@
       - Synology NAS DS423+ | NVMe:
             icon: synology
             href: https://nas.example.com
-            siteMonitor: https://10.0.10.nas-ip:5001
+            siteMonitor: https://10.0.10.NAS-IP:5001
             description: Volume 2
             widget:
                 type: diskstation
@@ -195,31 +195,31 @@
       - Synology Photos:
             icon: synology-photos
             href: https://photos.example.com
-            siteMonitor: https://10.0.10.nas-ip:7002
+            siteMonitor: https://10.0.10.NAS-IP:7002
             description: Photo management app
 
       - Synology Drive:
             icon: synology-drive
             href: https://drive.example.com
-            siteMonitor: https://10.0.10.nas-ip:7003
+            siteMonitor: https://10.0.10.NAS-IP:7003
             description: File syncing and sharing
 
       - MailPlus App:
             icon: synology-mail-plus
             href: https://mailapp.example.com
-            siteMonitor: https://10.0.10.nas-ip:7005
+            siteMonitor: https://10.0.10.NAS-IP:7005
             description: Webmail UI for MailPlus
 
       - Active Backup Portal:
             icon: synology-vmm
             href: https://activebackup-portal.example.com
-            siteMonitor: https://10.0.10.nas-ip:7004
+            siteMonitor: https://10.0.10.NAS-IP:7004
             description: Backup management dashboard
 
       - Synology Files:
             icon: files
             href: https://files.example.com
-            siteMonitor: https://10.0.10.nas-ip:7006
+            siteMonitor: https://10.0.10.NAS-IP:7006
             description: File access and management
 
 - Media Server:
@@ -295,7 +295,7 @@
             widget:
                 type: tdarr
                 url: "{{HOMEPAGE_VAR_TDARR_URL}}"
-                #key: tdarrapikey # optional
+                key: "{{HOMEPAGE_VAR_TDARR_API_KEY}}" # optional
 
 - qBittorrent:
       - qBittorrent:
