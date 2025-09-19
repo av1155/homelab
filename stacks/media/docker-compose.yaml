@@ -39,6 +39,19 @@ services:
             - /mnt/nas-media/Downloads:/downloads
         restart: unless-stopped
 
+    profilarr:
+        image: santiagosayshey/profilarr:latest
+        container_name: profilarr
+        ports:
+            - "6868:6868"
+        volumes:
+            - /root/docker/media-stack/profilarr/config:/config
+        environment:
+            - TZ=America/New_York
+            - PUID=0
+            - PGID=0
+        restart: unless-stopped
+
     plex:
         image: ghcr.io/linuxserver/plex:latest
         container_name: plex
@@ -122,28 +135,36 @@ services:
             - /mnt/tdarr-cache:/temp
         restart: unless-stopped
 
-    # recyclarr: # Replaced by Profilarr
-    #     image: ghcr.io/recyclarr/recyclarr:latest
-    #     container_name: recyclarr
-    #     environment:
-    #         - TZ=America/New_York
-    #         - PUID=0
-    #         - PGID=0
-    #     volumes:
-    #         - /root/docker/media-stack/recyclarr/config:/config
-    #     restart: unless-stopped
-
-    profilarr:
-        image: santiagosayshey/profilarr:latest
-        container_name: profilarr
-        ports:
-            - "6868:6868"
+    cleanuparr:
+        image: ghcr.io/cleanuparr/cleanuparr:latest
+        container_name: cleanuparr
+        network_mode: host
         volumes:
-            - /root/docker/media-stack/profilarr/config:/config
+            - /root/docker/media-stack/cleanuparr/config:/config
         environment:
             - TZ=America/New_York
             - PUID=0
             - PGID=0
+            - UMASK=022
+            - PORT=11011
+        healthcheck:
+            test: ["CMD", "curl", "-f", "http://localhost:11011/health"]
+            interval: 30s
+            timeout: 10s
+            start_period: 30s
+            retries: 3
+        restart: unless-stopped
+
+    huntarr:
+        image: ghcr.io/plexguide/huntarr:latest
+        container_name: huntarr
+        network_mode: host
+        environment:
+            - TZ=America/New_York
+            - PUID=0
+            - PGID=0
+        volumes:
+            - /root/docker/media-stack/huntarr/config:/config
         restart: unless-stopped
 
     flaresolverr:
@@ -174,3 +195,14 @@ services:
         volumes:
             - /mnt/nas-media/YouTube:/downloads
         restart: unless-stopped
+
+    # recyclarr: # Replaced by Profilarr
+    #     image: ghcr.io/recyclarr/recyclarr:latest
+    #     container_name: recyclarr
+    #     environment:
+    #         - TZ=America/New_York
+    #         - PUID=0
+    #         - PGID=0
+    #     volumes:
+    #         - /root/docker/media-stack/recyclarr/config:/config
+    #     restart: unless-stopped
