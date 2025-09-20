@@ -1,0 +1,34 @@
+services:
+    tdarr-node:
+        image: ghcr.io/haveagitgat/tdarr_node:latest
+        container_name: tdarr-node
+        network_mode: host
+        devices:
+            - /dev/dri:/dev/dri
+        environment:
+            - TZ=America/New_York
+            - PUID=0
+            - PGID=0
+            - UMASK_SET=002
+            - nodeName=tdarr-node-01
+            - serverIP=${TDARR_SERVER_IP}
+            - serverPort=8266
+            - inContainer=true
+            - ffmpegVersion=7
+            - nodeType=mapped
+            - priority=-1
+            - apiKey=${TDARR_NODE_KEY} # Generated from Tools -> API Keys after creating a user and signing in
+            - maxLogSizeMB=10
+            - cronPluginUpdate=0 0 * * * # Daily at midnight
+            - pollInterval=2000
+            - startPaused=false
+            - transcodegpuWorkers=1
+            - transcodecpuWorkers=2
+            - healthcheckgpuWorkers=1
+            - healthcheckcpuWorkers=1
+        volumes:
+            - /root/docker/media-stack/tdarr/configs:/app/configs
+            - /root/docker/media-stack/tdarr/logs:/app/logs
+            - /mnt/nas-media:/media
+            - /mnt/tdarr-cache:/temp
+        restart: unless-stopped
