@@ -39,6 +39,20 @@ services:
             - /mnt/nas-media/Downloads:/downloads
         restart: unless-stopped
 
+    sabnzbd:
+        image: lscr.io/linuxserver/sabnzbd:latest
+        container_name: sabnzbd
+        ports:
+            - "8080:8080"
+        environment:
+            - PUID=0
+            - PGID=0
+            - TZ=America/New_York
+        volumes:
+            - /root/docker/media-stack/sabnzbd/config:/config
+            - /mnt/nas-media/Downloads:/downloads
+        restart: unless-stopped
+
     profilarr:
         image: santiagosayshey/profilarr:latest
         container_name: profilarr
