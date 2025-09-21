@@ -297,7 +297,19 @@
                 url: "{{HOMEPAGE_VAR_TDARR_URL}}"
                 key: "{{HOMEPAGE_VAR_TDARR_API_KEY}}" # optional
 
-- qBittorrent:
+- Download Clients:
+      - SABnzbd:
+            icon: SABnzbd
+            href: "{{HOMEPAGE_VAR_SABNZBD_URL}}"
+            description: Usenet newsreader
+            server: ct-media
+            container: sabnzbd
+            showStats: true
+            widget:
+                type: sabnzbd
+                url: "{{HOMEPAGE_VAR_SABNZBD_URL}}"
+                key: "{{HOMEPAGE_VAR_SABNZBD_API_KEY}}"
+
       - qBittorrent:
             icon: qbittorrent
             href: "{{HOMEPAGE_VAR_QBITTORRENT_URL}}"
