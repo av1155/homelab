@@ -80,10 +80,11 @@ services:
             - PUID=0
             - PGID=0
             # - PLEX_CLAIM=your_claim_token
+        tmpfs:
+            - /ram-transcode:size=6G
         volumes:
             - /root/docker/media-stack/plex:/config
             - /mnt/nas-media:/media
-            - /dev/shm/plex_transcode:/ram-transcode
             - /mnt/plex-nfs-transcode:/nfs-transcode
         restart: unless-stopped
 

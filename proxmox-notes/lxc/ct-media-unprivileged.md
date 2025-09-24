@@ -266,7 +266,38 @@ services:
 
 ## Plex RAM & Downloads Transcode Directories (inside CT)
 
-Create a RAM-backed directory for live transcode sessions, and a separate NFS-backed directory for download transcodes:
+### RAM transcode directory for live transcode sessions
+
+#### Option 1: Set a `tmpfs` in the Docker Compose file:
+
+```yaml
+services:
+    plex:
+        image: ghcr.io/linuxserver/plex:latest
+        container_name: plex
+        network_mode: host
+        healthcheck:
+            test: wget --no-verbose --tries=1 --spider http://localhost:32400/web || exit 1
+        devices:
+            - /dev/dri:/dev/dri
+        environment:
+            - TZ=America/New_York
+            - VERSION=docker
+            - PUID=0
+            - PGID=0
+            # - PLEX_CLAIM=your_claim_token
+        tmpfs:
+            - /ram-transcode:size=6G
+        volumes:
+            - /root/docker/media-stack/plex:/config
+            - /mnt/nas-media:/media
+            - /mnt/plex-nfs-transcode:/nfs-transcode
+        restart: unless-stopped
+```
+
+---
+
+#### Option 2: Create a RAM-backed directory:
 
 ```bash
 # RAM for live streaming transcodes
@@ -283,19 +314,9 @@ volumes:
     - /mnt/plex-nfs-transcode:/nfs-transcode
 ```
 
-Set in Plex Web UI:
-
-- **Settings → Transcoder → Transcoder temporary directory** → `/ram-transcode`
-- **Settings → Transcoder → Downloads temporary directory** → `/nfs-transcode`
-
-This ensures:
-
-- **RAM (`/ram-transcode`)** is used for fast, temporary transcodes during streaming.
-- **NFS (`/nfs-transcode`)** is used for transcoded downloads until clients fetch them, keeping large files off RAM.
-
 ---
 
-### NFS Mount for Plex Downloads Transcode
+### NFS Mount for Plex Download Transcodes
 
 1. **On the NAS (Synology):**  
    Create a shared folder (e.g. `plex-transcode`) under `/volume2/proxmox-ha-storage`.
@@ -329,6 +350,18 @@ This ensures:
     ```
 
     Now inside the CT, the directory is available at `/mnt/plex-nfs-transcode`.
+
+---
+
+Then, set in Plex Web UI:
+
+- **Settings → Transcoder → Transcoder temporary directory** → `/ram-transcode`
+- **Settings → Transcoder → Downloads temporary directory** → `/nfs-transcode`
+
+This ensures:
+
+- **RAM (`/ram-transcode`)** is used for fast, temporary transcodes during streaming.
+- **NFS (`/nfs-transcode`)** is used for transcoded downloads until clients fetch them, keeping large files off RAM.
 
 ---
 
