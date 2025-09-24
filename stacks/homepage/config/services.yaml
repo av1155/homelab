@@ -299,7 +299,7 @@
 
 - Download Clients:
       - SABnzbd:
-            icon: SABnzbd
+            icon: sabnzbd
             href: "{{HOMEPAGE_VAR_SABNZBD_URL}}"
             description: Usenet newsreader
             server: ct-media
