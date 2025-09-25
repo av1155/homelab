@@ -186,8 +186,11 @@ jobs:
 
                   ALL_NAMES="$(printf "%s\n%s\n" "$CHANGED_NAMES" "$BROKEN_NAMES" | awk NF | sort -u)"
 
-                  if [[ -n "$ALL_NAMES" ]]; then
-                    MATRIX="$(jq -n --arg s "$ALL_NAMES" '($s|split("\n")|map(select(length>0))) | {stack: .}')"
+                  LIVE_NAMES="$(find "${STACKS_DIR}" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort -u || true)"
+                  FILTERED_NAMES="$(comm -12 <(printf "%s\n" "$ALL_NAMES" | awk 'NF') <(printf "%s\n" "$LIVE_NAMES" | awk 'NF'))"
+
+                  if [[ -n "$FILTERED_NAMES" ]]; then
+                    MATRIX="$(jq -n --arg s "$FILTERED_NAMES" '($s|split("\n")|map(select(length>0))) | {stack: .}')"
                     {
                       echo "matrix<<EOF"
                       echo "$MATRIX"
@@ -201,8 +204,12 @@ jobs:
 
                   {
                     echo "## 🔍 Change Detection"
-                    if [[ -n "$ALL_NAMES" ]]; then
-                      echo "- Stacks to validate: \`$(echo "$ALL_NAMES" | tr '\n' ' ')\` ✅"
+                    if [[ -n "$FILTERED_NAMES" ]]; then
+                      echo "- Stacks to validate: \`$(echo "$FILTERED_NAMES" | tr '\n' ' ')\` ✅"
+                      PRUNED="$(comm -23 <(printf "%s\n" "$ALL_NAMES" | awk 'NF') <(printf "%s\n" "$FILTERED_NAMES" | awk 'NF') || true)"
+                      if [[ -n "$PRUNED" ]]; then
+                        echo "- Pruned (deleted/missing): \`$(echo "$PRUNED" | tr '\n' ' ')\`"
+                      fi
                     else
                       echo "- No stacks to validate ✅"
                     fi
@@ -406,6 +413,13 @@ jobs:
 
                   # Write final merged cache
                   jq -c '{stack: .}' .ci/_merged.list > "${BROKEN_CACHE_PATH}"
+
+                  # Prune entries for stacks that no longer exist in the repo
+                  LIVE_NAMES="$(find "${STACKS_DIR}" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort -u || true)"
+                  jq -n --arg s "$LIVE_NAMES" '($s|split("\n")|map(select(length>0)))' > .ci/_live.json
+                  jq -c --argfile live .ci/_live.json \
+                    '.stack |= ( . | map(select(. as $x | $live | index($x))))' \
+                    "${BROKEN_CACHE_PATH}" > .ci/_tmp.json && mv .ci/_tmp.json "${BROKEN_CACHE_PATH}"
                   echo "Merged cache:"; cat "${BROKEN_CACHE_PATH}"
 
                   # Sanity check: ensure file has correct shape
