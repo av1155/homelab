@@ -4,8 +4,8 @@ services:
         container_name: prometheus
         restart: unless-stopped
         extra_hosts:
-            - "host.docker.internal:host-gateway"
             # Allows access to host network from container
+            - "host.docker.internal:host-gateway"
         user: "0:0"
         ports:
             - 9090:9090/tcp
