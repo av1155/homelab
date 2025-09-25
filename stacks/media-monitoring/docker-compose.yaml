@@ -1,0 +1,105 @@
+services:
+    prometheus:
+        image: prom/prometheus:latest
+        container_name: prometheus
+        restart: unless-stopped
+        extra_hosts:
+            - "host.docker.internal:host-gateway"
+            # Allows access to host network from container
+        user: "0:0"
+        ports:
+            - 9090:9090/tcp
+        environment:
+            - TZ=America/New_York
+        volumes:
+            - /root/docker/media-monitoring-stack/prometheus/config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+            - /root/docker/media-monitoring-stack/prometheus/config/rules:/etc/prometheus/rules:ro
+            - /root/docker/media-monitoring-stack/prometheus/data/:/prometheus
+        command:
+            - --config.file=/etc/prometheus/prometheus.yml
+            - --storage.tsdb.path=/prometheus
+            - --storage.tsdb.retention.time=30d
+            - --web.enable-lifecycle
+            - --web.enable-admin-api
+
+    prometheus-plex-exporter:
+        container_name: prometheus-plex-exporter
+        image: ghcr.io/timothystewart6/prometheus-plex-exporter:latest
+        restart: unless-stopped
+        # ports:
+        # - 9000:9000/tcp
+        environment:
+            - TZ=America/New_York
+            - PLEX_SERVER=${PLEX_SERVER}
+            - PLEX_TOKEN=${PLEX_TOKEN}
+
+    node_exporter:
+        image: quay.io/prometheus/node-exporter:latest
+        container_name: node_exporter
+        restart: unless-stopped
+        network_mode: host
+        # ports:
+        #   - 9100:9100
+        command:
+            - "--path.rootfs=/host"
+            - "--path.procfs=/host/proc"
+            - "--path.sysfs=/host/sys"
+            - "--collector.cpu.info"
+        pid: host
+        environment:
+            - TZ=America/New_York
+        volumes:
+            - "/:/host:ro,rslave"
+
+    intel-gpu-exporter:
+        image: ghcr.io/clambin/intel-gpu-exporter:latest
+        container_name: intel-gpu-exporter
+        restart: unless-stopped
+        devices:
+            - /dev/dri:/dev/dri
+        privileged: true
+        pid: host
+        environment:
+            - TZ=America/New_York
+
+    smartctl-exporter:
+        image: quay.io/prometheuscommunity/smartctl-exporter:latest
+        container_name: smartctl-exporter
+        restart: unless-stopped
+        # privileged: true
+        user: root
+        environment:
+            - TZ=America/New_York
+
+    grafana:
+        image: grafana/grafana:latest
+        container_name: grafana
+        restart: unless-stopped
+        depends_on:
+            - prometheus
+        user: "0:0"
+        ports:
+            - 3000:3000/tcp
+        environment:
+            - TZ=America/New_York
+            - GF_SECURITY_ADMIN_USER=${GRAFANA_USER}
+            - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+            - GF_SERVER_ROOT_URL=http://localhost:3000
+            - GF_USERS_ALLOW_SIGN_UP=false
+        volumes:
+            - /root/docker/media-monitoring-stack/grafana/data:/var/lib/grafana
+            - /root/docker/media-monitoring-stack/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
+            - /root/docker/media-monitoring-stack/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+
+    cadvisor:
+        image: gcr.io/cadvisor/cadvisor:latest
+        container_name: cadvisor
+        restart: unless-stopped
+        environment:
+            - TZ=America/New_York
+        volumes:
+            - /:/rootfs:ro
+            - /var/run:/var/run:ro
+            - /sys:/sys:ro
+            - /var/lib/docker/:/var/lib/docker:ro
+            - /dev/disk/:/dev/disk:ro
