@@ -221,9 +221,6 @@ jobs:
             - name: Checkout
               uses: actions/checkout@v4
 
-            - name: Set up Docker Buildx
-              uses: docker/setup-buildx-action@v3
-
             - name: Install tools (yamllint, jq)
               run: |
                   set -euo pipefail
@@ -434,12 +431,22 @@ jobs:
         if: ${{ !cancelled() }}
         runs-on: ubuntu-latest
         timeout-minutes: 25
+        env:
+            TRIVY_DB_REPOSITORY: ghcr.io/aquasec/trivy-db:2
         permissions:
             contents: read
             actions: write
         steps:
             - name: Checkout
               uses: actions/checkout@v4
+
+            # Define DOCKERHUB_USERNAME / DOCKERHUB_TOKEN in repo secrets to enable.
+            - name: Login to Docker Hub
+              if: ${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
+              uses: docker/login-action@v3
+              with:
+                  username: ${{ secrets.DOCKERHUB_USERNAME }}
+                  password: ${{ secrets.DOCKERHUB_TOKEN }}
 
             - name: Install yq
               run: |
@@ -501,6 +508,12 @@ jobs:
                   curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
                     | sudo sh -s -- -b /usr/local/bin
 
+            # Warm the Trivy DB (so scans don't try the flaky mirror). Uses the weekly cache if restored.
+            - name: Prefetch Trivy DB (GHCR)
+              run: |
+                  set -euo pipefail
+                  trivy --cache-dir ~/.cache/trivy --download-db-only --db-repository "${TRIVY_DB_REPOSITORY}"
+
             - name: Scan images with Trivy (CRITICAL only)
               if: steps.collect.outputs.count != '0'
               run: |
@@ -510,7 +523,13 @@ jobs:
                   while read -r img; do
                     [[ -z "$img" ]] && continue
                     echo "::group::Trivy scan $img"
-                    trivy image --scanners vuln --severity CRITICAL --ignore-unfixed --no-progress "$img" 2>&1 | tee -a trivy.log || failed=1
+                    trivy image \
+                      --scanners vuln \
+                      --severity CRITICAL \
+                      --ignore-unfixed \
+                      --no-progress \
+                      --db-repository "${TRIVY_DB_REPOSITORY}" \
+                      "$img" 2>&1 | tee -a trivy.log || failed=1
                     echo "::endgroup::"
                   done < images.txt
                   (( failed == 0 ))
