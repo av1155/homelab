@@ -26,8 +26,6 @@ services: # Monitoring and Observavility:
         container_name: prometheus-plex-exporter
         image: ghcr.io/timothystewart6/prometheus-plex-exporter:latest
         restart: unless-stopped
-        depends_on:
-            - plex
         # ports:
         # - 9000:9000/tcp
         environment:
