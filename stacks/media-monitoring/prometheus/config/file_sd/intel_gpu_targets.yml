@@ -1,0 +1,11 @@
+- targets: ["10.0.10.10:8082"]
+  labels:
+      node: pve-nuc12-01
+
+- targets: ["10.0.10.11:8082"]
+  labels:
+      node: pve-nuc11-01
+
+- targets: ["10.0.10.12:8082"]
+  labels:
+      node: pve-eqi13-01
