@@ -1,4 +1,4 @@
-services: # Monitoring and Observavility:
+services:
     prometheus:
         image: prom/prometheus:latest
         container_name: prometheus
