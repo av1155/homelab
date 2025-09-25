@@ -509,12 +509,6 @@ jobs:
                   curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
                     | sudo sh -s -- -b /usr/local/bin
 
-            # Warm the Trivy DB (so scans don't try the flaky mirror). Uses the weekly cache if restored.
-            - name: Prefetch Trivy DB (GHCR)
-              run: |
-                  set -euo pipefail
-                  trivy --cache-dir ~/.cache/trivy --download-db-only --db-repository "${TRIVY_DB_REPOSITORY}"
-
             - name: Scan images with Trivy (CRITICAL only)
               if: steps.collect.outputs.count != '0'
               run: |
