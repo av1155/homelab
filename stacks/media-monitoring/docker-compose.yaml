@@ -14,6 +14,7 @@ services:
         volumes:
             - /root/docker/media-monitoring-stack/prometheus/config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
             - /root/docker/media-monitoring-stack/prometheus/config/rules:/etc/prometheus/rules:ro
+            - /root/docker/media-monitoring-stack/prometheus/config/file_sd:/etc/prometheus/file_sd:ro
             - /root/docker/media-monitoring-stack/prometheus/data/:/prometheus
         command:
             - --config.file=/etc/prometheus/prometheus.yml
@@ -50,17 +51,6 @@ services:
             - TZ=America/New_York
         volumes:
             - "/:/host:ro,rslave"
-
-    intel-gpu-exporter:
-        image: ghcr.io/clambin/intel-gpu-exporter:latest
-        container_name: intel-gpu-exporter
-        restart: unless-stopped
-        devices:
-            - /dev/dri:/dev/dri
-        privileged: true
-        pid: host
-        environment:
-            - TZ=America/New_York
 
     smartctl-exporter:
         image: quay.io/prometheuscommunity/smartctl-exporter:latest
@@ -103,3 +93,15 @@ services:
             - /sys:/sys:ro
             - /var/lib/docker/:/var/lib/docker:ro
             - /dev/disk/:/dev/disk:ro
+
+    # On PVE nodes, run  the following service to expose the metrics:
+    # intel-gpu-exporter:
+    #     image: ghcr.io/onedr0p/intel-gpu-exporter:rolling
+    #     container_name: intel-gpu-exporter
+    #     restart: unless-stopped
+    #     privileged: true
+    #     pid: host
+    #     ports:
+    #         - 8082:8080
+    #     volumes:
+    #         - /dev/dri/:/dev/dri/
