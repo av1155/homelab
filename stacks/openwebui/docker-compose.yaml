@@ -13,7 +13,7 @@ services:
             WEB_LOADER_CONCURRENT_REQUESTS: 10
             SEARXNG_QUERY_URL: "http://searxng:8080/search?q=<query>"
         ports:
-            - "3000:8080"
+            - "3010:8080"
         volumes:
             - ${HOME}/docker-compose/openwebui/openwebui-data:/app/backend/data
 
