@@ -81,3 +81,15 @@ services:
             - AUTH_SECRET=${PEANUT_AUTH_SECRET}
         volumes:
             - /root/docker/utilities-stack/peanut/config:/config
+
+    upsnap:
+        container_name: upsnap
+        image: ghcr.io/seriousm4x/upsnap:latest
+        network_mode: host
+        restart: unless-stopped
+        volumes:
+            - /root/docker/utilities-stack/upsnap/data:/app/pb_data
+        environment:
+            - TZ=America/New_York
+            - UPSNAP_SCAN_RANGE=192.168.4.0/24
+        entrypoint: /bin/sh -c "./upsnap serve --http 0.0.0.0:5001"
