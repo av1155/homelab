@@ -46,15 +46,15 @@ services:
         ports:
             - 8080:80
 
-    libretranslate:
-        container_name: libretranslate
-        image: libretranslate/libretranslate:latest
-        restart: unless-stopped
-        ports:
-            - 5000:5000
-        environment:
-            - LT_INSTANCE_NAME=ProxmoxLibre
-            - LT_LOAD_ONLY=bn,zh,zt,nl,en,fr,de,hi,id,it,ja,ko,ms,pl,pt,ru,es,tr
+    # libretranslate:
+    #     container_name: libretranslate
+    #     image: libretranslate/libretranslate:latest
+    #     restart: unless-stopped
+    #     ports:
+    #         - 5000:5000
+    #     environment:
+    #         - LT_INSTANCE_NAME=ProxmoxLibre
+    #         - LT_LOAD_ONLY=bn,zh,zt,nl,en,fr,de,hi,id,it,ja,ko,ms,pl,pt,ru,es,tr
 
     openspeedtest:
         container_name: openspeedtest
