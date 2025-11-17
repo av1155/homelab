@@ -91,5 +91,5 @@ services:
             - /root/docker/utilities-stack/upsnap/data:/app/pb_data
         environment:
             - TZ=America/New_York
-            - UPSNAP_SCAN_RANGE=192.168.10.0/24
+            - UPSNAP_SCAN_RANGE=${UPSNAP_NETWORK_SCAN_RANGE}
         entrypoint: /bin/sh -c "./upsnap serve --http 0.0.0.0:5001"
