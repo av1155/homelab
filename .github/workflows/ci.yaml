@@ -35,11 +35,13 @@ jobs:
             - name: Checkout
               uses: actions/checkout@v4
 
-            - name: Install actionlint (pinned downloader)
+            - name: Install actionlint
               run: |
                   set -euo pipefail
-                  curl -sSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash \
-                    | bash -s -- latest /usr/local/bin
+                  VERSION="1.7.8"
+                  URL="https://github.com/rhysd/actionlint/releases/download/v${VERSION}/actionlint_${VERSION}_linux_amd64.tar.gz"
+                  curl -sSL "$URL" | sudo tar -xz -C /usr/local/bin actionlint
+                  sudo chmod +x /usr/local/bin/actionlint
                   actionlint --version
 
             - name: Lint GitHub workflows (actionlint)
