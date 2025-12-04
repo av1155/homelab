@@ -5,7 +5,7 @@ services:
         network_mode: host
         restart: unless-stopped
         volumes:
-            - /root/docker/utilities-stack/upsnap/data:/app/pb_data
+            - /root/docker/upsnap-stack/upsnap/data:/app/pb_data
         environment:
             - TZ=America/New_York
             - UPSNAP_SCAN_RANGE=${UPSNAP_NETWORK_SCAN_RANGE}
