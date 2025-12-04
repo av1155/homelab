@@ -1,0 +1,15 @@
+services:
+    upsnap:
+        container_name: upsnap
+        image: ghcr.io/seriousm4x/upsnap:latest
+        network_mode: host
+        restart: unless-stopped
+        volumes:
+            - /root/docker/utilities-stack/upsnap/data:/app/pb_data
+        environment:
+            - TZ=America/New_York
+            - UPSNAP_SCAN_RANGE=${UPSNAP_NETWORK_SCAN_RANGE}
+        entrypoint: /bin/sh -c "./upsnap serve --http 0.0.0.0:5001"
+        healthcheck:
+            test: curl -fs "http://localhost:5001/api/health" || exit 1
+            interval: 10s

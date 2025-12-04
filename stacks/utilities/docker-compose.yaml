@@ -82,14 +82,9 @@ services:
         volumes:
             - /root/docker/utilities-stack/peanut/config:/config
 
-    # upsnap:
-    #     container_name: upsnap
-    #     image: ghcr.io/seriousm4x/upsnap:latest
-    #     network_mode: host
-    #     restart: unless-stopped
-    #     volumes:
-    #         - /root/docker/utilities-stack/upsnap/data:/app/pb_data
-    #     environment:
-    #         - TZ=America/New_York
-    #         - UPSNAP_SCAN_RANGE=${UPSNAP_NETWORK_SCAN_RANGE}
-    #     entrypoint: /bin/sh -c "./upsnap serve --http 0.0.0.0:5001"
+    excalidraw:
+        container_name: excalidraw
+        image: excalidraw/excalidraw:latest
+        restart: unless-stopped
+        ports:
+            - "5020:80"
