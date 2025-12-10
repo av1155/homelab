@@ -161,6 +161,8 @@ This repository uses a **CI/CD pipeline** to ensure every stack stays **valid, s
 - **Ingress & DNS** – Nginx Proxy Manager, dual AdGuard Home DNS servers
 - **Remote Access** – WireGuard VPN, strict firewall + per-service port rules
 
+👉 [Full security documentation](./SECURITY.md)
+
 ---
 
 ## Storage & Backups
