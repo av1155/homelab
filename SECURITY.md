@@ -82,4 +82,4 @@ Dual AdGuard Home instances (primary + secondary) with:
 
 ## Remote Access
 
-WireGuard VPN for secure remote management. VPN clients have full access to Internal and Gateway zones.
+WireGuard VPN for secure remote management. VPN clients have full access to Default and Homelab VLANs.
