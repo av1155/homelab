@@ -118,6 +118,15 @@ services:
             - /root/docker/media-stack/maintainerr/data:/opt/data
         restart: unless-stopped
 
+    agregarr:
+        image: agregarr/agregarr:latest
+        container_name: agregarr
+        ports:
+            - 7171:7171
+        volumes:
+            - /root/docker/media-stack/agregarr/config:/app/config
+        restart: unless-stopped
+
     tdarr:
         image: ghcr.io/haveagitgat/tdarr:latest
         container_name: tdarr
