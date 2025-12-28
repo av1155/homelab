@@ -221,6 +221,33 @@ services:
             - /mnt/nas-media/YouTube:/downloads
         restart: unless-stopped
 
+    audiobookshelf:
+        image: ghcr.io/advplyr/audiobookshelf:latest
+        container_name: audiobookshelf
+        ports:
+            - 13378:80
+        environment:
+            - TZ=America/New_York
+        volumes:
+            - /root/docker/media-stack/audiobookshelf/config:/config
+            - /root/docker/media-stack/audiobookshelf/metadata:/metadata
+            - /mnt/nas-media/Audiobooks:/audiobooks
+        restart: unless-stopped
+
+    bookshelf:
+        image: ghcr.io/pennydreadful/bookshelf:hardcover
+        container_name: bookshelf
+        network_mode: host
+        environment:
+            - TZ=America/New_York
+            - PUID=0
+            - PGID=0
+        volumes:
+            - /root/docker/media-stack/bookshelf/config:/config
+            - /mnt/nas-media/Audiobooks:/audiobooks
+            - /mnt/nas-media/Downloads:/downloads
+        restart: unless-stopped
+
     # recyclarr: # Replaced by Profilarr
     #     image: ghcr.io/recyclarr/recyclarr:latest
     #     container_name: recyclarr
