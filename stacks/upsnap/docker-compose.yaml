@@ -9,7 +9,6 @@ services:
         environment:
             - TZ=America/New_York
             - UPSNAP_SCAN_RANGE=${UPSNAP_NETWORK_SCAN_RANGE}
-        entrypoint: /bin/sh -c "./upsnap serve --http 0.0.0.0:5001"
         healthcheck:
-            test: curl -fs "http://localhost:5001/api/health" || exit 1
+            test: curl -fs "http://localhost:8090/api/health" || exit 1
             interval: 10s
