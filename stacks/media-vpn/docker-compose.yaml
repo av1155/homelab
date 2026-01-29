@@ -36,12 +36,6 @@ services:
             - /root/docker/media-vpn-stack/gluetun:/gluetun
             - /root/docker/media-vpn-stack/gluetun/auth/config.toml:/gluetun/auth/config.toml
         restart: always
-        healthcheck:
-            test: ["CMD", "sh", "-c", "nslookup google.com > /dev/null 2>&1"]
-            interval: 10s
-            timeout: 5s
-            retries: 6
-            start_period: 120s
 
     qbittorrent:
         image: ghcr.io/linuxserver/qbittorrent:latest
@@ -63,22 +57,6 @@ services:
         depends_on:
             gluetun:
                 condition: service_healthy
-        entrypoint: >
-            /bin/bash -c "
-            echo 'Waiting for VPN DNS resolution via gluetun...';
-            timeout 300 bash -c '
-              until nslookup google.com >/dev/null 2>&1; do
-                echo Waiting for DNS...;
-                sleep 5;
-              done
-            ';
-            if [ $? -ne 0 ]; then
-              echo 'DNS check timed out. Exiting.';
-              exit 1;
-            fi;
-            echo 'DNS working. Starting qBittorrent.';
-            exec /init
-            "
         tty: true
         restart: always
         healthcheck:
