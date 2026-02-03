@@ -101,7 +101,7 @@ services:
         restart: unless-stopped
 
     maintainerr:
-        image: ghcr.io/jorenn92/maintainerr:latest
+        image: maintainerr/maintainerr:latest
         container_name: maintainerr
         network_mode: host
         user: "0:0"
