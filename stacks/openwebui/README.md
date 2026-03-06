@@ -11,14 +11,14 @@ brew services start ollama
 
 OpenWebUI will automatically detect it later.
 
-## Configure SearXNG for Web Search support
+## Configure SearXNG for web search support
 
-### Step 1: Generate Initial Configuration
+### Step 1: Generate initial configuration
 
-Run the following command so that **searxng** generates the `settings.yml` file:
+Run the following command so `searxng` generates the `settings.yml` file:
 
 ```bash
-docker compose up -d ; sleep 10 ; docker compose down
+docker compose up -d && sleep 10 && docker compose down
 ```
 
 ---
@@ -33,7 +33,7 @@ sed -i .bak '/- html/a\
 ' searxng/settings.yml
 ```
 
-#### Verify the output:
+#### Verify the output
 
 ```bash
 grep -A3 'formats:' searxng/settings.yml
@@ -41,7 +41,7 @@ grep -A3 'formats:' searxng/settings.yml
 
 ---
 
-### Step 3: Update Security and Server Settings
+### Step 3: Update security and server settings
 
 Generate a secure key:
 
@@ -61,7 +61,7 @@ Bind the server to all interfaces:
 sed -i .bak '/^server:/,/^[^[:space:]]/ s/^\([[:space:]]*bind_address:\).*/\1 "0.0.0.0"/' searxng/settings.yml
 ```
 
-#### Verify the changes:
+#### Verify the changes
 
 ```bash
 grep -nE '^(server:|[[:space:]]+port:|[[:space:]]+bind_address:)' searxng/settings.yml
@@ -78,11 +78,11 @@ curl --remote-name https://raw.githubusercontent.com/searxng/searxng-docker/refs
 
 ---
 
-### Step 5: (Optional) Fix Hugging Face CAS 403 Errors
+### Step 5: (Optional) Fix Hugging Face CAS 403 errors
 
 If you encounter errors like:
 
-```
+```text
 Fatal Error: "s3::get_range" api call failed ... HTTP status client error (403 Forbidden)
 ```
 

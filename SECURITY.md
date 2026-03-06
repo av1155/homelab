@@ -2,7 +2,7 @@
 
 ![Network Diagram](assets/Home-Infra.excalidraw.png)
 
-This document outlines the security architecture protecting the homelab infrastructure.
+This document outlines the security architecture protecting the homelab network perimeter and self-hosted services.
 
 ---
 
@@ -59,15 +59,14 @@ Critical services are protected by up to three authentication layers:
 
 ---
 
-## Exposed Services
+## Internet-Exposed Services
 
-| Service   | Port(s)                          | Protection                                    |
-| --------- | -------------------------------- | --------------------------------------------- |
-| Web (NPM) | 443                              | Cloudflare proxy, Zero Trust where applicable |
-| WireGuard | 51820                            | Cryptographic authentication                  |
-| Plex      | 32400                            | Plex authentication, invite-only              |
-| Mail      | 25, 587, 993, 995                | SMTP auth, SPF/DKIM/DMARC                     |
-| Sunshine  | 47984, 47989, 48010, 47998-48000 | Encrypted, PIN + certificate pairing          |
+| Service   | Port(s)           | Protection                                    |
+| --------- | ----------------- | --------------------------------------------- |
+| Web (NPM) | 443               | Cloudflare proxy, Zero Trust where applicable |
+| WireGuard | 51820             | Cryptographic authentication                  |
+| Plex      | 32400             | Plex authentication, invite-only              |
+| Mail      | 25, 587, 993, 995 | SMTP auth, SPF/DKIM/DMARC                     |
 
 ---
 

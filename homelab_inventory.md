@@ -6,6 +6,15 @@ The goal is to document the scale and value of the environment, highlight the tr
 
 ---
 
+## Estimation Method
+
+- Cloud pricing is modeled as infrastructure-equivalent estimates, not direct one-to-one managed-service replacements.
+- Compute sizing uses nearest practical EC2 instance classes for vCPU and memory parity.
+- Storage modeling uses mixed EBS/EFS/S3 classes to approximate workload patterns (OS, VM storage, and bulk media/archive).
+- Network transfer, support plans, and labor costs are not included in monthly totals.
+
+---
+
 ## Compute Resources
 
 - **NUC 11** (i5-1145G7, 4C/8T, 32 GB RAM)  

@@ -1,8 +1,9 @@
-# Homelab Kubernetes Production Setup
+# Homelab Kubernetes HA Platform Setup
 
-A step-by-step reference showing how this cluster was made **highly
-available, persistent, and observable**. The instructions below reflect
-the configuration that is running in the environment today.
+A step-by-step reference for building and operating a **highly available,
+persistent, and observable** kubeadm platform in this homelab. It
+documents the architecture, manifests, and operational procedures used
+to deploy and validate the cluster.
 
 > **Quick links:**  
 > • [Create LAN wildcard cert (mkcert)](#a-create-a-lan-only-wildcard-cert-with-mkcert-example-uses-macbook)  

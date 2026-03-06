@@ -4,10 +4,10 @@
 
 > **Prerequisites:**
 >
-> - WOL should already be working before you attempt any of this
-> - The target device must be on the same network (or same VLAN) as the device hosting UpSnap
+> - Wake-on-LAN (WOL) should already be working before you begin
+> - The target device must be on the same network (or VLAN) as the device hosting UpSnap
 
-### Add Device in UpSnap
+### Add a device in UpSnap
 
 After setting up the UpSnap container, add a new device in the web UI:
 
@@ -22,7 +22,7 @@ To enable remote sleep functionality, install Sleep-On-LAN on the Windows 11 tar
 
 1. Download Sleep-On-LAN
 
-    Go to [SR-G/sleep-on-lan releases](https://github.com/SR-G/sleep-on-lan/releases/latest) and download the `.zip` file from the latest release.
+     Go to [SR-G/sleep-on-lan releases](https://github.com/SR-G/sleep-on-lan/releases/latest) and download the latest `.zip` release.
 
 2. Extract the binary
 
@@ -51,7 +51,7 @@ To enable remote sleep functionality, install Sleep-On-LAN on the Windows 11 tar
 
 4. Install Sleep-On-LAN as a Windows service
 
-    The Sleep-On-Lan process can be run manually or installed as a service. The easiest way to install it as a service is to use [NSSM](https://nssm.cc/) (the Non-Sucking Service Manager).
+     The Sleep-On-LAN process can run manually or as a service. The easiest service setup uses [NSSM](https://nssm.cc/) (the Non-Sucking Service Manager).
 
     **Run as administrator** (Right-click on PowerShell or Command Prompt > Run as administrator):
 
