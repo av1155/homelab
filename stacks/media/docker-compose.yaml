@@ -64,6 +64,8 @@ services:
             - TZ=America/New_York
             - PUID=0
             - PGID=0
+        security_opt:
+            - no-new-privileges:true
         restart: unless-stopped
 
     plex:
@@ -122,9 +124,13 @@ services:
         image: agregarr/agregarr:latest
         container_name: agregarr
         ports:
-            - 7171:7171
+            - "7171:7171"
+        environment:
+            - TZ=America/New_York
         volumes:
             - /root/docker/media-stack/agregarr/config:/app/config
+        security_opt:
+            - no-new-privileges:true
         restart: unless-stopped
 
     tdarr:
@@ -142,16 +148,16 @@ services:
             - serverPort=8266
             - webUIPort=8265
             - serverURL=${TDARR_SERVER_URL}
-            - internalNode=true
+            - internalNode="true"
             - priority=0
-            - inContainer=true
+            - inContainer="true"
             - ffmpegVersion=7
             - nodeName=internal-node
-            - auth=true
+            - auth="true"
             - apiKey=${TDARR_NODE_KEY} # Generated from Tools -> API Keys after creating a user and signing in
-            - openBrowser=false
+            - openBrowser="false"
             - maxLogSizeMB=10
-            - cronPluginUpdate=0 0 * * *
+            - cronPluginUpdate="0 0 * * *"
         volumes:
             - /root/docker/media-stack/tdarr/server:/app/server
             - /root/docker/media-stack/tdarr/configs:/app/configs
@@ -193,33 +199,39 @@ services:
             - LOG_HTML=${LOG_HTML:-false}
             - CAPTCHA_SOLVER=${CAPTCHA_SOLVER:-none}
             - DRIVER=${DRIVER:-nodriver}
+        security_opt:
+            - no-new-privileges:true
         restart: unless-stopped
 
     metube:
-        image: ghcr.io/alexta69/metube
+        image: ghcr.io/alexta69/metube:latest
         container_name: metube
         ports:
-            - 8083:8081
+            - "8083:8081"
         environment:
             - TZ=America/New_York
             - PUID=0
             - PGID=0
-            - DELETE_FILE_ON_TRASHCAN=true
+            - DELETE_FILE_ON_TRASHCAN="true"
         volumes:
             - /mnt/nas-media/YouTube:/downloads
+        security_opt:
+            - no-new-privileges:true
         restart: unless-stopped
 
     audiobookshelf:
         image: ghcr.io/advplyr/audiobookshelf:latest
         container_name: audiobookshelf
         ports:
-            - 13378:80
+            - "13378:80"
         environment:
             - TZ=America/New_York
         volumes:
             - /root/docker/media-stack/audiobookshelf/config:/config
             - /root/docker/media-stack/audiobookshelf/metadata:/metadata
             - /mnt/nas-media/Audiobooks:/audiobooks
+        security_opt:
+            - no-new-privileges:true
         restart: unless-stopped
 
     bookshelf:
@@ -235,14 +247,3 @@ services:
             - /mnt/nas-media/Audiobooks:/audiobooks
             - /mnt/nas-media/Downloads:/downloads
         restart: unless-stopped
-
-    # recyclarr: # Replaced by Profilarr
-    #     image: ghcr.io/recyclarr/recyclarr:latest
-    #     container_name: recyclarr
-    #     environment:
-    #         - TZ=America/New_York
-    #         - PUID=0
-    #         - PGID=0
-    #     volumes:
-    #         - /root/docker/media-stack/recyclarr/config:/config
-    #     restart: unless-stopped

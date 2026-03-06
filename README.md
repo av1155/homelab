@@ -28,7 +28,7 @@ This project is my **personal lab** and represents the real-world DevOps/SRE ski
 ## Skills Snapshot
 
 - **Infrastructure & Clustering** – Proxmox HA, Kubernetes, Docker, ZFS, Synology NAS, Longhorn
-- **Automation & IaC** – GitOps, Argo CD, GitHub Actions, Portainer GitOps, Dokploy, (planned: Terraform modules and Ansible Playbooks for Proxmox/AWS)
+- **Automation & IaC** – GitOps, Argo CD, GitHub Actions, Portainer GitOps (planned: Terraform modules and Ansible Playbooks for Proxmox/AWS)
 - **Observability & Ops** – Prometheus + Grafana, Beszel, Uptime Kuma, Dozzle, Kestra
 - **Networking & Security** – Cloudflare Proxy + Zero Trust, NPM (LXC) with in-cluster NGINX Ingress + MetalLB, AdGuard Home (dual DNS), VLAN segmentation, WireGuard VPN, firewall rules
 - **Backup & DR** – ZFS replication, Synology NAS (Hyper Backup + cloud sync), Cloudflare R2 off-site storage
@@ -84,7 +84,7 @@ _Proxmox Dashboard:_
         - `watchtower` – automated updates & Slack reporting  
           **Deployed on 11 Docker environments → 29 stacks / 95 containers total**
 
-- **CI/CD with Dokploy**
+- **External app deployments (Dokploy, outside this repo)**
     - Webhook-triggered deployments for custom apps (Flask, Next.js, static sites, etc.)
     - Docker Swarm cluster deployments with horizontal scaling
     - Automated DB backups stored in **Cloudflare R2 (S3-compatible)** for durability & DR

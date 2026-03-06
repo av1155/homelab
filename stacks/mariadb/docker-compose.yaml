@@ -9,7 +9,9 @@ services:
             - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
             - TZ=America/New_York
         ports:
-            - 3306:3306
+            - "3306:3306"
+        security_opt:
+            - no-new-privileges:true
         restart: unless-stopped
 
     phpmyadmin:
@@ -20,11 +22,14 @@ services:
         environment:
             - PMA_PORT=3306
             - PMA_HOST=${PMA_HOST}
+            - TZ=America/New_York
         volumes:
             - /root/docker/database-stack/mariadb_phpmyadmin/phpmyadmin/uploads.ini:/usr/local/etc/php/conf.d/uploads.ini:rw
             - /root/docker/database-stack/mariadb_phpmyadmin/phpmyadmin/config.user.inc.php:/etc/phpmyadmin/config.user.inc.php:ro
         ports:
-            - 2500:80
+            - "2500:80"
+        security_opt:
+            - no-new-privileges:true
         depends_on:
             - mariadb
         restart: unless-stopped

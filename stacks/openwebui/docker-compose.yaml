@@ -6,8 +6,9 @@ services:
         networks:
             - searxnet
         environment:
-            ENABLE_PERSISTENT_CONFIG: false
-            ENABLE_WEB_SEARCH: true
+            TZ: America/New_York
+            ENABLE_PERSISTENT_CONFIG: "false"
+            ENABLE_WEB_SEARCH: "true"
             WEB_SEARCH_ENGINE: "searxng"
             WEB_SEARCH_RESULT_COUNT: 3
             WEB_LOADER_CONCURRENT_REQUESTS: 10
@@ -16,6 +17,8 @@ services:
             - "3010:8080"
         volumes:
             - ${HOME}/docker-compose/openwebui/openwebui-data:/app/backend/data
+        security_opt:
+            - no-new-privileges:true
 
     searxng:
         container_name: searxng
@@ -29,8 +32,11 @@ services:
             - ${HOME}/docker-compose/openwebui/searxng:/etc/searxng:rw
             - searxng-data:/var/cache/searxng:rw
         environment:
+            - TZ=America/New_York
             - SEARXNG_HOSTNAME=localhost:8080/
             - SEARXNG_BASE_URL=http://localhost:8080/
+        security_opt:
+            - no-new-privileges:true
 
 networks:
     searxnet:

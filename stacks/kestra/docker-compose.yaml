@@ -6,9 +6,12 @@ services:
         volumes:
             - /root/docker/kestra-stack/postgres:/var/lib/postgresql/data
         environment:
+            TZ: America/New_York
             POSTGRES_DB: kestra
             POSTGRES_USER: "${POSTGRES_AUTH_USER}"
             POSTGRES_PASSWORD: "${POSTGRES_AUTH_PASS}"
+        security_opt:
+            - no-new-privileges:true
         healthcheck:
             test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
             interval: 30s
@@ -29,6 +32,7 @@ services:
             - /var/run/docker.sock:/var/run/docker.sock
             - /root/docker/kestra-stack/kestra/tmp:/tmp/kestra-wd
         environment:
+            TZ: America/New_York
             KESTRA_CONFIGURATION: |
                 datasources:
                   postgres:

@@ -4,10 +4,11 @@ services:
         image: ghcr.io/gethomepage/homepage:latest
         restart: unless-stopped
         ports:
-            - 3100:3000
+            - "3100:3000"
         # env_file:
         #     - stack.env
         environment:
+            - TZ=America/New_York
             - HOMEPAGE_ALLOWED_HOSTS=${HOMEPAGE_ALLOWED_HOSTS}
             - HOMEPAGE_VAR_ADGUARD_PROXMOX_URL=${HOMEPAGE_VAR_ADGUARD_PROXMOX_URL}
             - HOMEPAGE_VAR_ADGUARD_PROXMOX_REMOTE_URL=${HOMEPAGE_VAR_ADGUARD_PROXMOX_REMOTE_URL}
@@ -79,3 +80,5 @@ services:
             - /root/docker/homepage-stack/homepage/config:/app/config
             - /root/docker/homepage-stack/homepage/images:/app/public/images
             - /var/run/docker.sock:/var/run/docker.sock:ro
+        security_opt:
+            - no-new-privileges:true
