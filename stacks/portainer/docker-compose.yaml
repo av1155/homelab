@@ -4,8 +4,10 @@ services:
         image: portainer/portainer-ce:lts
         restart: always
         ports:
-            - 9443:9443
-            - 8000:8000
+            - "9443:9443"
+            - "8000:8000"
+        environment:
+            - TZ=America/New_York
         volumes:
             - /var/run/docker.sock:/var/run/docker.sock
             - /root/docker/portainer-stack/portainer/data:/data

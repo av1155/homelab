@@ -8,7 +8,7 @@ services:
             - "host.docker.internal:host-gateway"
         user: "0:0"
         ports:
-            - 9090:9090/tcp
+            - "9090:9090/tcp"
         environment:
             - TZ=America/New_York
         volumes:
@@ -33,6 +33,8 @@ services:
             - TZ=America/New_York
             - PLEX_SERVER=${PLEX_SERVER}
             - PLEX_TOKEN=${PLEX_TOKEN}
+        security_opt:
+            - no-new-privileges:true
 
     node_exporter:
         image: quay.io/prometheus/node-exporter:latest
@@ -69,7 +71,7 @@ services:
             - prometheus
         user: "0:0"
         ports:
-            - 3000:3000/tcp
+            - "3000:3000/tcp"
         environment:
             - TZ=America/New_York
             - GF_SECURITY_ADMIN_USER=${GRAFANA_USER}
@@ -80,6 +82,8 @@ services:
             - /root/docker/media-monitoring-stack/grafana/data:/var/lib/grafana
             - /root/docker/media-monitoring-stack/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
             - /root/docker/media-monitoring-stack/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+        security_opt:
+            - no-new-privileges:true
 
     cadvisor:
         image: gcr.io/cadvisor/cadvisor:latest
