@@ -528,10 +528,19 @@ jobs:
               run: |
                   set -euo pipefail
                   failed=0
+                  skipped=0
                   : > trivy.log
                   while read -r img; do
                     [[ -z "$img" ]] && continue
                     echo "::group::Trivy scan $img"
+
+                    if ! docker pull "$img" >/dev/null 2>&1; then
+                      echo "::warning title=Trivy skipped image::Image unreachable or access denied: $img"
+                      skipped=$((skipped + 1))
+                      echo "::endgroup::"
+                      continue
+                    fi
+
                     trivy image \
                       --scanners vuln \
                       --severity CRITICAL \
@@ -541,6 +550,13 @@ jobs:
                       "$img" 2>&1 | tee -a trivy.log || failed=1
                     echo "::endgroup::"
                   done < images.txt
+
+                  if (( skipped > 0 )); then
+                    {
+                      echo "- Trivy skipped unreachable images: \`$skipped\`"
+                    } >> "$GITHUB_STEP_SUMMARY"
+                  fi
+
                   (( failed == 0 ))
 
             # --- Save ONLY from schedule/manual on main AND only on a miss ---

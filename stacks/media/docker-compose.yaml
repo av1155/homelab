@@ -180,18 +180,6 @@ services:
             retries: 3
         restart: unless-stopped
 
-    huntarr:
-        image: ghcr.io/plexguide/huntarr:latest
-        container_name: huntarr
-        network_mode: host
-        environment:
-            - TZ=America/New_York
-            - PUID=0
-            - PGID=0
-        volumes:
-            - /root/docker/media-stack/huntarr/config:/config
-        restart: unless-stopped
-
     flaresolverr:
         image: 21hsmw/flaresolverr:nodriver
         container_name: flaresolverr
