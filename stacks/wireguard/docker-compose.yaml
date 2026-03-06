@@ -15,7 +15,7 @@ services:
             - PASSWORD_HASH=${WIREGUARD_ADMIN_PASSWORD_HASH}
             - WG_DEFAULT_ADDRESS=10.8.0.x
             - WG_DEFAULT_DNS=${WG_DEFAULT_DNS}
-            - UI_TRAFFIC_STATS="true"
+            - UI_TRAFFIC_STATS=true
             - UI_CHART_TYPE=2 # (0 Charts disabled, 1 # Line chart, 2 # Area chart, 3 # Bar chart)
             - WG_POST_UP=iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -o eth0 -j MASQUERADE
             - WG_POST_DOWN=iptables -t nat -D POSTROUTING -s 10.8.0.0/24 -o eth0 -j MASQUERADE

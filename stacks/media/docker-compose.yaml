@@ -148,16 +148,16 @@ services:
             - serverPort=8266
             - webUIPort=8265
             - serverURL=${TDARR_SERVER_URL}
-            - internalNode="true"
+            - internalNode=true
             - priority=0
-            - inContainer="true"
+            - inContainer=true
             - ffmpegVersion=7
             - nodeName=internal-node
-            - auth="true"
+            - auth=true
             - apiKey=${TDARR_NODE_KEY} # Generated from Tools -> API Keys after creating a user and signing in
-            - openBrowser="false"
+            - openBrowser=false
             - maxLogSizeMB=10
-            - cronPluginUpdate="0 0 * * *"
+            - cronPluginUpdate=0 0 * * *
         volumes:
             - /root/docker/media-stack/tdarr/server:/app/server
             - /root/docker/media-stack/tdarr/configs:/app/configs
@@ -212,7 +212,7 @@ services:
             - TZ=America/New_York
             - PUID=0
             - PGID=0
-            - DELETE_FILE_ON_TRASHCAN="true"
+            - DELETE_FILE_ON_TRASHCAN=true
         volumes:
             - /mnt/nas-media/YouTube:/downloads
         security_opt:
