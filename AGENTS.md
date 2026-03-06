@@ -4,7 +4,7 @@
 
 Infrastructure-as-code repository for a homelab environment. Contains Docker Compose
 stacks (deployed via Portainer GitOps), Kubernetes manifests (kubeadm HA cluster with
-Argo CD), infrastructure templates, and planned IaC tooling (Packer, Terraform, Ansible).
+Argo CD), host-deployed Compose templates, and planned IaC tooling (Packer, Terraform, Ansible).
 **No application source code** — this is purely declarative config (YAML, Markdown, shell scripts).
 
 ## Repository Structure
@@ -17,7 +17,7 @@ docs/                    # Operational docs, runbooks, SRE artifacts, ADRs
   runbooks/              # Stack rollback and operational runbooks
   sre/                   # SLOs, DR drills, incident reports
   adr/                   # Architecture Decision Records
-infra-templates/         # Reusable compose templates (agent stacks, Tdarr nodes)
+host-templates/          # Compose templates deployed directly on LXCs/VMs (agents, Tdarr nodes)
 kubernetes/              # K8s manifests (kube-vip, MetalLB, Longhorn, monitoring, Argo CD)
 packer/                  # (planned) Proxmox base image templates
 stacks/                  # Docker Compose stacks (Portainer GitOps-managed)

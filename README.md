@@ -86,8 +86,7 @@ _Proxmox Dashboard:_
 ## Deployment & Automation
 
 - **GitOps with Portainer**
-    - Primary service runtime uses Docker Compose stacks reconciled from GitHub
-    - Stacks reconciled directly from GitHub
+    - Docker Compose stacks reconciled directly from GitHub
     - GitHub Actions: linting, Compose validation, secret scanning (TruffleHog), image scanning (Trivy)
     - Host-level secret injection (no secrets in Git)
     - Portainer runs in a dedicated HA LXC, with **Portainer Agents + baseline agents** deployed across all nodes/devices:
@@ -158,11 +157,6 @@ This repository uses a **CI/CD pipeline** to ensure every stack stays **valid, s
 - **Image scanning** – daily scheduled Trivy runs + PR changed-scope scans detect CRITICAL CVEs
 - **Security gates** – strict CI gate blocks merge if required checks fail
 
-### Why it matters
-
-- Portainer GitOps only deploys **healthy stacks**, reducing drift and risk
-- Security and quality gates surface issues early, before merge
-
 ---
 
 ## Networking & Security
@@ -192,28 +186,6 @@ This repository uses a **CI/CD pipeline** to ensure every stack stays **valid, s
 
 _Homelab Dashboard:_
 ![Homepage Dashboard](assets/Homelab.jpeg)
-
----
-
-## Design Principles
-
-- **Resilient by default** – HA cluster, replication, automated failover
-- **Security-first** – VLAN isolation, Zero Trust, VPN ingress, firewall rules
-- **Cloud-centric** – mirrors enterprise HA/DR patterns, integrates with Cloudflare + cloud storage
-- **Scalable & automated** – GitOps, CI/CD, webhook builds, auto-updates
-
----
-
-## Outcomes
-
-This homelab proves I can:
-
-- Build and operate **production-like infrastructure**
-- Apply **modern DevOps practices** (GitOps, CI/CD, IaC, observability)
-- Secure and monitor complex systems with **alerts, logs, and dashboards**
-- Manage **resilient deployments** with disaster recovery baked in
-
-It reflects the **engineering mindset** needed in Site Reliability / DevOps: systems that are **resilient, observable, automated, and secure**.
 
 ---
 
@@ -249,7 +221,7 @@ docs/
   ├── proxmox/       # Proxmox operational notes and runbooks
   ├── runbooks/      # Stack rollback and operational runbooks — Phase 0
   └── sre/           # SLOs, DR drills, incident reports — Phase 7
-infra-templates/     # Reusable Compose templates (agent stacks, Tdarr nodes)
+host-templates/      # Compose templates deployed directly on LXCs/VMs (agents, Tdarr nodes)
 kubernetes/          # K8s manifests (kube-vip, MetalLB, Longhorn, Argo CD, monitoring)
 packer/              # (planned) Proxmox base image templates — Phase 1
 stacks/
