@@ -23,14 +23,14 @@ This project is my **personal lab** and represents the real-world DevOps/SRE ski
 - [**Homelab Inventory & Cloud Cost Comparison**](./homelab_inventory.md)  
   Hardware, one-time spend, AWS-equivalent monthly cost, and 3-year savings.
 - [**DevOps Roadmap**](./ROADMAP.md)  
-  Phased plan from baseline safety → Packer → Terraform → Ansible → Vault → full IaC.
+  Phased plan: Packer → Terraform → Ansible → sops/age secrets → self-hosted CI runner → full GitOps with no Portainer dependency.
 
 ---
 
 ## Skills Snapshot
 
 - **Infrastructure & Clustering** – Proxmox HA, Docker, kubeadm Kubernetes HA design/operations, ZFS, Synology NAS, Longhorn
-- **Automation & IaC** – GitOps, Argo CD, GitHub Actions, Portainer GitOps (planned: Terraform modules and Ansible Playbooks for Proxmox/AWS)
+- **Automation & IaC** – GitOps, Argo CD, GitHub Actions, Portainer GitOps (in progress: Packer + Terraform + Ansible + sops/age for full pipeline automation — see [ROADMAP.md](./ROADMAP.md))
 - **Observability & Ops** – Prometheus + Grafana, Beszel, Uptime Kuma, Dozzle, Kestra
 - **Networking & Security** – Cloudflare Proxy + Zero Trust, NPM (LXC) with in-cluster NGINX Ingress + MetalLB, AdGuard Home (dual DNS), VLAN segmentation, WireGuard VPN, firewall rules
 - **Backup & DR** – ZFS replication, Synology NAS (Hyper Backup + cloud sync), Cloudflare R2 off-site storage
