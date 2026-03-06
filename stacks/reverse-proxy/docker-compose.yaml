@@ -16,7 +16,7 @@ services:
             - "995:995" # POP3 over SSL
         environment:
             - TZ=America/New_York
-            - DISABLE_IPV6="true"
+            - DISABLE_IPV6=true
         security_opt:
             - no-new-privileges:true
         volumes:
