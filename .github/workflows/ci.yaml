@@ -6,6 +6,16 @@ on:
     schedule:
         - cron: "0 14 * * *" # Scheduled security runs at 14:00 UTC
     workflow_dispatch:
+        inputs:
+            scan_scope:
+                description: "Image scan scope (auto=PR changed stacks, otherwise all)"
+                required: false
+                type: choice
+                default: auto
+                options:
+                    - auto
+                    - changed
+                    - all
 
 permissions:
     contents: read
@@ -442,6 +452,7 @@ jobs:
     # 4) Image security
     security_images:
         name: Security — Container Images
+        needs: detect_changes
         if: ${{ !cancelled() }}
         runs-on: ubuntu-latest
         timeout-minutes: 25
@@ -472,12 +483,52 @@ jobs:
               id: collect
               run: |
                   set -euo pipefail
+
+                  EVENT_NAME="${{ github.event_name }}"
+                  MANUAL_SCOPE="${{ github.event.inputs.scan_scope || 'auto' }}"
+
+                  SCAN_SCOPE="all"
+                  case "$EVENT_NAME" in
+                    pull_request)
+                      SCAN_SCOPE="changed"
+                      ;;
+                    schedule)
+                      SCAN_SCOPE="all"
+                      ;;
+                    workflow_dispatch)
+                      case "$MANUAL_SCOPE" in
+                        changed|all)
+                          SCAN_SCOPE="$MANUAL_SCOPE"
+                          ;;
+                        auto|*)
+                          SCAN_SCOPE="all"
+                          ;;
+                      esac
+                      ;;
+                    *)
+                      SCAN_SCOPE="all"
+                      ;;
+                  esac
+
+                  mapfile -t compose_files < <(find "${STACKS_DIR}" -name "docker-compose.yaml" | sort || true)
+
+                  if [[ "$SCAN_SCOPE" == "changed" ]]; then
+                    mapfile -t changed_stacks < <(jq -r '.stack[]?' <<<'${{ needs.detect_changes.outputs.matrix }}' | awk 'NF' || true)
+
+                    compose_files=()
+                    for stack in "${changed_stacks[@]}"; do
+                      candidate="${STACKS_DIR}/${stack}/docker-compose.yaml"
+                      [[ -f "$candidate" ]] && compose_files+=("$candidate")
+                    done
+                  fi
+
                   > images.txt
-                  if ! find "${STACKS_DIR}" -name "docker-compose.yaml" | grep -q .; then
-                    echo "No docker-compose.yaml files found."
+                  if (( ${#compose_files[@]} == 0 )); then
+                    echo "No docker-compose.yaml files selected for scope: $SCAN_SCOPE"
                     echo "count=0" >> "$GITHUB_OUTPUT"
                     {
                       echo "## 📦 Image Inventory"
+                      echo "- Scan scope: \`$SCAN_SCOPE\`"
                       echo "- Total images: \`0\`"
                       echo
                       echo "### Preview (up to 10 images)"
@@ -485,15 +536,16 @@ jobs:
                     exit 0
                   fi
 
-                  while IFS= read -r -d '' f; do
+                  for f in "${compose_files[@]}"; do
                     yq -r '.services[]? | .image? // ""' "$f"
-                  done < <(find "${STACKS_DIR}" -name "docker-compose.yaml" -print0) \
+                  done \
                     | grep -v '^$' | sort -u > images.txt
                   count="$(wc -l < images.txt | xargs || echo 0)"
                   echo "count=$count" >> "$GITHUB_OUTPUT"
 
                   {
                     echo "## 📦 Image Inventory"
+                    echo "- Scan scope: \`$SCAN_SCOPE\`"
                     echo "- Total images: \`$count\`"
                     echo
                     echo "### Preview (up to 10 images)"
@@ -569,6 +621,7 @@ jobs:
 
             # --- Keep only the latest 4 weekly caches per OS ---
             - name: Prune old Trivy caches (keep last 4)
+              if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') }}
               env:
                   GH_TOKEN: ${{ github.token }}
               run: |
