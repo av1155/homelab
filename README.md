@@ -4,7 +4,7 @@
 
 > **TL;DR:**
 > This homelab is a **production-like environment** designed for **high availability, automation, observability, and resilience**.
-> It demonstrates hands-on experience with **Proxmox clustering, Kubernetes, Docker, GitOps, CI/CD, Cloudflare Zero Trust, backups, and monitoring**.
+> It demonstrates hands-on experience with **Proxmox clustering, Docker operations, Kubernetes platform engineering, GitOps, CI/CD, Cloudflare Zero Trust, backups, and monitoring**.
 > All services are defined as code in this repo.
 
 This project is my **personal lab** and represents the real-world DevOps/SRE skills I bring:
@@ -18,7 +18,7 @@ This project is my **personal lab** and represents the real-world DevOps/SRE ski
 
 ## Key Docs
 
-- [**Kubernetes Production Setup**](./kubernetes/README.md)  
+- [**Kubernetes HA Platform Setup**](./kubernetes/README.md)  
   Step-by-step HA cluster config: kube-vip, MetalLB, Longhorn, backups, Prometheus/Grafana, Argo CD.
 - [**Homelab Inventory & Cloud Cost Comparison**](./homelab_inventory.md)  
   Hardware, one-time spend, AWS-equivalent monthly cost, and 3-year savings.
@@ -27,7 +27,7 @@ This project is my **personal lab** and represents the real-world DevOps/SRE ski
 
 ## Skills Snapshot
 
-- **Infrastructure & Clustering** – Proxmox HA, Kubernetes, Docker, ZFS, Synology NAS, Longhorn
+- **Infrastructure & Clustering** – Proxmox HA, Docker, kubeadm Kubernetes HA design/operations, ZFS, Synology NAS, Longhorn
 - **Automation & IaC** – GitOps, Argo CD, GitHub Actions, Portainer GitOps (planned: Terraform modules and Ansible Playbooks for Proxmox/AWS)
 - **Observability & Ops** – Prometheus + Grafana, Beszel, Uptime Kuma, Dozzle, Kestra
 - **Networking & Security** – Cloudflare Proxy + Zero Trust, NPM (LXC) with in-cluster NGINX Ingress + MetalLB, AdGuard Home (dual DNS), VLAN segmentation, WireGuard VPN, firewall rules
@@ -45,26 +45,37 @@ This project is my **personal lab** and represents the real-world DevOps/SRE ski
 
 ---
 
+## Architecture Overview
+
+- **Segmented network design** with dedicated VLANs for default clients, homelab infrastructure, IoT, and untrusted devices
+- **Clear workload placement** across Proxmox nodes, Kubernetes control-plane/worker VMs, and supporting LXCs
+- **Hybrid edge + core flow** from UniFi/Cloudflare ingress through reverse proxying to internal services
+
+_Network and infrastructure topology:_
+![Homelab Infrastructure Diagram](assets/Home-Infra.excalidraw.png)
+
+---
+
 ## Compute & Clustering
 
 - **Proxmox 3-node HA cluster** (HA failover; ZFS snapshots/replication) → 40 vCPUs, 96 GB RAM
 - **Workload separation**:
     - **LXCs** → lightweight Dockerized services (Portainer managed)
-    - **VMs** → Kubernetes cluster (**3 control planes + 3 workers**)
+    - **VMs** → Kubernetes platform topology (**3 control planes + 3 workers**)
 
 _Proxmox Dashboard:_
 ![Proxmox Cluster Overview](assets/Proxmox.jpeg)
 
 ---
 
-## Kubernetes Cluster
+## Kubernetes Platform
 
-- **Cluster type:** kubeadm, 3 control planes + 3 workers (running on Proxmox VMs)
-- **Networking:** Flannel CNI, MetalLB for LoadBalancer IPs, NGINX Ingress
-- **Storage:** Longhorn HA volumes, backed up to Synology NAS (NFS)
-- **Observability:** Prometheus + Grafana, with persistent dashboards
-- **GitOps:** Argo CD for application lifecycle
-- **Edge:** TLS terminates at Nginx Proxy Manager, fronted by Cloudflare proxy/DNS
+- **Architecture:** kubeadm, 3 control planes + 3 workers on Proxmox VMs
+- **Networking stack:** Flannel CNI, MetalLB for LoadBalancer IPs, NGINX Ingress
+- **Storage stack:** Longhorn HA volumes with Synology NFS backup targets
+- **Platform operations:** kube-vip control-plane VIP, etcd snapshots, ingress routing, Argo CD workflows
+- **Observability stack:** Prometheus + Grafana with persistent dashboards
+- **Edge model:** TLS terminates at Nginx Proxy Manager, fronted by Cloudflare proxy/DNS
 
 [Full K8s config](./kubernetes/README.md)
 
@@ -73,6 +84,7 @@ _Proxmox Dashboard:_
 ## Deployment & Automation
 
 - **GitOps with Portainer**
+    - Primary service runtime uses Docker Compose stacks reconciled from GitHub
     - Stacks reconciled directly from GitHub
     - GitHub Actions: linting, Compose validation, secret scanning (TruffleHog), image scanning (Trivy)
     - Host-level secret injection (no secrets in Git)
@@ -142,7 +154,7 @@ This repository uses a **CI/CD pipeline** to ensure every stack stays **valid, s
 - **YAML & Compose checks** – validate syntax and Docker Compose configs per stack
 - **Secrets scanning** – block commits containing verified secrets
 - **Image scanning** – daily scheduled Trivy runs + PR changed-scope scans detect CRITICAL CVEs
-- **Code scanning** – TruffleHog secrets scanning and Trivy CRITICAL CVE detection
+- **Security gates** – strict CI gate blocks merge if required checks fail
 
 ### Why it matters
 
