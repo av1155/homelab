@@ -4,20 +4,29 @@
 
 Infrastructure-as-code repository for a homelab environment. Contains Docker Compose
 stacks (deployed via Portainer GitOps), Kubernetes manifests (kubeadm HA cluster with
-Argo CD), and infrastructure templates. **No application source code** — this is purely
-declarative config (YAML, Markdown, shell scripts).
+Argo CD), infrastructure templates, and planned IaC tooling (Packer, Terraform, Ansible).
+**No application source code** — this is purely declarative config (YAML, Markdown, shell scripts).
 
 ## Repository Structure
 
 ```text
+ansible/                 # (planned) Ansible roles and playbooks for host configuration
+assets/                  # Screenshots and diagrams
+docs/                    # Operational docs, runbooks, SRE artifacts, ADRs
+  proxmox/               # Proxmox cluster notes and setup guides
+  runbooks/              # Stack rollback and operational runbooks
+  sre/                   # SLOs, DR drills, incident reports
+  adr/                   # Architecture Decision Records
+infra-templates/         # Reusable compose templates (agent stacks, Tdarr nodes)
+kubernetes/              # K8s manifests (kube-vip, MetalLB, Longhorn, monitoring, Argo CD)
+packer/                  # (planned) Proxmox base image templates
 stacks/                  # Docker Compose stacks (Portainer GitOps-managed)
   <stack-name>/
     docker-compose.yaml  # Service definitions
     stack.env.example    # Env var template (actual stack.env is gitignored)
-kubernetes/              # K8s manifests (kube-vip, MetalLB, Longhorn, monitoring, Argo CD)
-infra-templates/         # Reusable compose templates (agent stacks, Tdarr nodes)
-assets/                  # Screenshots and diagrams
+terraform/               # (planned) Terraform modules for Proxmox VM/LXC provisioning
 .github/workflows/       # CI (ci.yaml) and auto-merge (automerge.yaml)
+ROADMAP.md               # Phased IaC implementation plan
 ```
 
 ## Build / Lint / Test Commands
