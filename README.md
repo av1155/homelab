@@ -37,7 +37,7 @@ This project is my **personal lab** and represents the real-world DevOps/SRE ski
 
 ## Stats at a Glance
 
-- **GitOps:** 14 stacks · 47 containers
+- **GitOps:** 14 stacks · 46 containers
 - **Portainer-managed fleet (all environments):** 29 stacks · 95 containers across 11 Docker environments
 - **Resilience:** **RTO ≤ 3m** (Proxmox HA), **RPO ≈ 15m** (ZFS replication)
 - **Monitoring:** Prometheus + Grafana dashboards · 64 checks in Uptime Kuma · 10 hosts in Dozzle · 10 systems in Beszel
@@ -141,7 +141,7 @@ This repository uses a **CI/CD pipeline** to ensure every stack stays **valid, s
 - **Workflow & docs linting** – consistent workflows and clean documentation
 - **YAML & Compose checks** – validate syntax and Docker Compose configs per stack
 - **Secrets scanning** – block commits containing verified secrets
-- **Image scanning** – weekly Trivy runs detect CRITICAL CVEs
+- **Image scanning** – daily scheduled Trivy runs + PR changed-scope scans detect CRITICAL CVEs
 - **Code scanning** – TruffleHog secrets scanning and Trivy CRITICAL CVE detection
 
 ### Why it matters
@@ -252,7 +252,7 @@ stacks/
   └── wireguard/         # VPN
 ```
 
-Each directory includes:
+Most stack directories include:
 
 - `docker-compose.yaml` – services & configs
 - `stack.env.example` – reproducible environment variables
