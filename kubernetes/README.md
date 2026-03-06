@@ -720,7 +720,7 @@ volume snapshots underneath.
 This deploys kube-prometheus-stack with:
 
 - **Grafana → PostgreSQL** (no SQLite on PVC)
-- **Prometheus → Longhorn PVC** (7-day retention)
+- **Prometheus → Longhorn PVC** (1-day retention, 4.5 GB size cap)
 - **Alertmanager → Longhorn PVC**
 - Ingress via **ingress-nginx**, fronted by NPM (HTTP between NPM <-> ingress)
 
@@ -732,7 +732,18 @@ This deploys kube-prometheus-stack with:
 
 ### A) Create secrets
 
-`~/cluster-src/monitoring/postgres-auth-secret.yaml`
+> **Note:** Secret files are **not committed to the repo** (blocked by `.gitignore`). Template files
+> (`postgres-auth-secret.yaml.example`, `grafana-db-secret.yaml.example`) are provided in
+> `kubernetes/monitoring/`. Copy each to the non-`.example` filename and fill in real values
+> before applying.
+
+```bash
+cp kubernetes/monitoring/postgres-auth-secret.yaml.example ~/cluster-src/monitoring/postgres-auth-secret.yaml
+cp kubernetes/monitoring/grafana-db-secret.yaml.example   ~/cluster-src/monitoring/grafana-db-secret.yaml
+# Edit both files and replace placeholder passwords with real values
+```
+
+`~/cluster-src/monitoring/postgres-auth-secret.yaml` (after filling in values):
 
 ```yaml
 apiVersion: v1
@@ -744,10 +755,10 @@ type: Opaque
 stringData:
     POSTGRES_DB: grafana
     POSTGRES_USER: grafana
-    POSTGRES_PASSWORD: ChangeMe1234
+    POSTGRES_PASSWORD: <your-secure-password>
 ```
 
-`~/cluster-src/monitoring/grafana-db-secret.yaml`
+`~/cluster-src/monitoring/grafana-db-secret.yaml` (after filling in values):
 
 ```yaml
 apiVersion: v1
@@ -757,7 +768,7 @@ metadata:
     namespace: monitoring
 type: Opaque
 stringData:
-    GF_DATABASE_PASSWORD: ChangeMe1234
+    GF_DATABASE_PASSWORD: <your-secure-password>
 ```
 
 Apply:
@@ -897,7 +908,8 @@ grafana:
 
 prometheus:
     prometheusSpec:
-        retention: 7d
+        retention: 1d
+        retentionSize: 4.5GB
         storageSpec:
             volumeClaimTemplate:
                 spec:

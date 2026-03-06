@@ -1,2 +1,5 @@
 **/stack.env
 **/.env
+**/.DS_Store
+# Kubernetes secrets (commit only *.yaml.example templates)
+kubernetes/**/*-secret.yaml

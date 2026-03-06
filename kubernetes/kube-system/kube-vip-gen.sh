@@ -1,3 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
 sudo mkdir -p /etc/kubernetes/manifests
 export VIP=10.0.10.200
 export INTERFACE=eth0
