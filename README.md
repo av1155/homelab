@@ -37,7 +37,7 @@ This project is my **personal lab** and represents the real-world DevOps/SRE ski
 
 ## Stats at a Glance
 
-- **GitOps:** 11 stacks · 28 containers
+- **GitOps:** 14 stacks · 47 containers
 - **Portainer-managed fleet (all environments):** 29 stacks · 95 containers across 11 Docker environments
 - **Resilience:** **RTO ≤ 3m** (Proxmox HA), **RPO ≈ 15m** (ZFS replication)
 - **Monitoring:** Prometheus + Grafana dashboards · 64 checks in Uptime Kuma · 10 hosts in Dozzle · 10 systems in Beszel
@@ -66,7 +66,7 @@ _Proxmox Dashboard:_
 - **GitOps:** Argo CD for application lifecycle
 - **Edge:** TLS terminates at Nginx Proxy Manager, fronted by Cloudflare proxy/DNS
 
-👉 [Full K8s config](./kubernetes/README.md)
+[Full K8s config](./kubernetes/README.md)
 
 ---
 
@@ -142,7 +142,7 @@ This repository uses a **CI/CD pipeline** to ensure every stack stays **valid, s
 - **YAML & Compose checks** – validate syntax and Docker Compose configs per stack
 - **Secrets scanning** – block commits containing verified secrets
 - **Image scanning** – weekly Trivy runs detect CRITICAL CVEs
-- **Code scanning** – CodeQL ensures no critical security alerts
+- **Code scanning** – TruffleHog secrets scanning and Trivy CRITICAL CVE detection
 
 ### Why it matters
 
@@ -161,7 +161,7 @@ This repository uses a **CI/CD pipeline** to ensure every stack stays **valid, s
 - **Ingress & DNS** – Nginx Proxy Manager, dual AdGuard Home DNS servers
 - **Remote Access** – WireGuard VPN, strict firewall + per-service port rules
 
-👉 [Full security documentation](./SECURITY.md)
+[Full security documentation](./SECURITY.md)
 
 ---
 
@@ -207,19 +207,22 @@ It reflects the **engineering mindset** needed in Site Reliability / DevOps: sys
 
 Here’s a quick overview (full configs in [`stacks/`](stacks/)):
 
-| Stack             | Services (examples)                                                  | Purpose / Keywords                         |
-| ----------------- | -------------------------------------------------------------------- | ------------------------------------------ |
-| **dns**           | AdGuard Home, adguardhome-sync                                       | DNS filtering, redundancy                  |
-| **reverse-proxy** | Nginx Proxy Manager                                                  | TLS, ingress, Cloudflare API integration   |
-| **wireguard**     | WG-Easy                                                              | VPN server, secure remote access           |
-| **utilities**     | Beszel, Uptime Kuma, Dozzle, IT-Tools, LibreTranslate, OpenSpeedTest | Monitoring, logs, internal tooling         |
-| **vaultwarden**   | Vaultwarden + backup                                                 | Secrets mgmt, encrypted scheduled backups  |
-| **media**         | Plex, Sonarr, Radarr, Overseerr, Prowlarr, Tdarr, Recyclarr          | Media automation, GPU/VA-API transcoding   |
-| **media-vpn**     | Gluetun, qBittorrent                                                 | VPN-protected egress, health-gated startup |
-| **mariadb**       | MariaDB, phpMyAdmin                                                  | Relational DB + admin UI                   |
-| **kestra**        | Kestra, Postgres                                                     | Workflow orchestration, job automation     |
-| **openweb-ui**    | OpenWeb-UI, SearxNG                                                  | Local LLM interface + meta search          |
-| **homepage**      | getHomepage                                                          | Single-pane dashboard                      |
+| Stack                | Services (examples)                                                              | Purpose / Keywords                          |
+| -------------------- | -------------------------------------------------------------------------------- | ------------------------------------------- |
+| **dns**              | AdGuard Home, adguardhome-sync                                                   | DNS filtering, redundancy                   |
+| **reverse-proxy**    | Nginx Proxy Manager                                                              | TLS, ingress, Cloudflare API integration    |
+| **wireguard**        | WG-Easy                                                                          | VPN server, secure remote access            |
+| **utilities**        | Beszel, Uptime Kuma, Dozzle, IT-Tools, OpenSpeedTest, Peanut, Excalidraw         | Monitoring, logs, internal tooling          |
+| **vaultwarden**      | Vaultwarden + backup                                                             | Secrets mgmt, encrypted scheduled backups   |
+| **media**            | Plex, Sonarr, Radarr, Overseerr, Prowlarr, Tdarr, Profilarr, Audiobookshelf      | Media automation, GPU/VA-API transcoding    |
+| **media-vpn**        | Gluetun, qBittorrent, Deunhealth                                                 | VPN-protected egress, health-gated startup  |
+| **media-monitoring** | Prometheus, Grafana, Node Exporter, cAdvisor, Plex Exporter                      | Media & host metrics, dashboards            |
+| **mariadb**          | MariaDB, phpMyAdmin                                                              | Relational DB + admin UI                    |
+| **kestra**           | Kestra, Postgres                                                                 | Workflow orchestration, job automation      |
+| **openwebui**        | Open WebUI, SearxNG                                                              | Local LLM interface + meta search           |
+| **homepage**         | getHomepage                                                                      | Single-pane dashboard                       |
+| **portainer**        | Portainer CE                                                                     | Container management, GitOps orchestration  |
+| **upsnap**           | UpSnap                                                                           | Wake-on-LAN management                      |
 
 ---
 
@@ -234,16 +237,19 @@ Here’s a quick overview (full configs in [`stacks/`](stacks/)):
 ```bash
 stacks/
   ├── dns/               # DNS stack
-  ├── media/             # Plex + automation
-  ├── media-vpn/         # VPN-protected egress
-  ├── reverse-proxy/     # Nginx Proxy Manager
-  ├── utilities/         # Monitoring & tools
-  ├── vaultwarden/       # Secrets vault + backup
-  ├── wireguard/         # VPN
+  ├── homepage/          # Dashboard
   ├── kestra/            # Workflow orchestration
   ├── mariadb/           # Database stack
-  ├── openweb-ui/        # Local LLM + search
-  └── homepage/          # Dashboard
+  ├── media/             # Plex + automation
+  ├── media-monitoring/  # Prometheus + Grafana
+  ├── media-vpn/         # VPN-protected egress
+  ├── openwebui/         # Local LLM + search
+  ├── portainer/         # Container management
+  ├── reverse-proxy/     # Nginx Proxy Manager
+  ├── upsnap/            # Wake-on-LAN
+  ├── utilities/         # Monitoring & tools
+  ├── vaultwarden/       # Secrets vault + backup
+  └── wireguard/         # VPN
 ```
 
 Each directory includes:

@@ -15,7 +15,7 @@ services:
         ports:
             - "3010:8080"
         volumes:
-            - ${HOME}/docker-compose/openwebui/openwebui-data:/app/backend/data
+            - /root/docker/openwebui-stack/openwebui/data:/app/backend/data
 
     searxng:
         container_name: searxng
@@ -26,7 +26,7 @@ services:
         networks:
             - searxnet
         volumes:
-            - ${HOME}/docker-compose/openwebui/searxng:/etc/searxng:rw
+            - /root/docker/openwebui-stack/searxng:/etc/searxng:rw
             - searxng-data:/var/cache/searxng:rw
         environment:
             - SEARXNG_HOSTNAME=localhost:8080/

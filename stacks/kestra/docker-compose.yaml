@@ -2,6 +2,7 @@ services:
     postgres:
         image: postgres:17
         container_name: postgres
+        restart: unless-stopped
         volumes:
             - /root/docker/kestra-stack/postgres:/var/lib/postgresql/data
         environment:
@@ -17,6 +18,7 @@ services:
     kestra:
         image: kestra/kestra:latest
         container_name: kestra
+        restart: unless-stopped
         pull_policy: always
         # Note that this setup with a root user is intended for development purpose.
         # Our base image runs without root, but the Docker Compose implementation needs root to access the Docker socket

@@ -10,7 +10,7 @@ services:
             - TZ=America/New_York
         ports:
             - 3306:3306
-        restart: on-failure:5
+        restart: unless-stopped
 
     phpmyadmin:
         image: phpmyadmin:latest
@@ -27,4 +27,4 @@ services:
             - 2500:80
         depends_on:
             - mariadb
-        restart: on-failure:5
+        restart: unless-stopped
