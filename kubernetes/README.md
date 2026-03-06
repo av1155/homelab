@@ -720,7 +720,7 @@ volume snapshots underneath.
 This deploys kube-prometheus-stack with:
 
 - **Grafana → PostgreSQL** (no SQLite on PVC)
-- **Prometheus → Longhorn PVC** (7-day retention)
+- **Prometheus → Longhorn PVC** (1-day retention, 4.5 GB size cap)
 - **Alertmanager → Longhorn PVC**
 - Ingress via **ingress-nginx**, fronted by NPM (HTTP between NPM <-> ingress)
 
@@ -908,7 +908,8 @@ grafana:
 
 prometheus:
     prometheusSpec:
-        retention: 7d
+        retention: 1d
+        retentionSize: 4.5GB
         storageSpec:
             volumeClaimTemplate:
                 spec:
