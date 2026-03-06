@@ -1,11 +1,12 @@
 # Proxmox Cluster (homelab-cluster)
 
 - Nodes:
-    - pve-node-a (10.0.10.NODE-A-IP)
-    - pve-node-b (10.0.10.NODE-B-IP)
-- QDevice (Raspberry Pi): 10.0.10.PI-IP
-- Total votes: 3
-- Quorum: 2 required
+    - pve-eqi13-01 (10.0.10.EQI13-IP)
+    - pve-nuc11-01 (10.0.10.NUC11-IP)
+    - pve-nuc12-01 (10.0.10.NUC12-IP)
+- QDevice (Raspberry Pi 5): 10.0.10.PI-IP
+- Total votes: 4 (3 nodes + 1 QDevice)
+- Quorum: 3 required
 - Config backed up: /etc/pve/corosync.conf.backup-2025-05-12
 
 ---
@@ -357,7 +358,7 @@ Why lower `swappiness`?
 
 ## Recommended Configuration
 
-Apply the following on **both nodes** (`pve-node-a` and `pve-node-b`):
+Apply the following on **all three nodes** (`pve-eqi13-01`, `pve-nuc11-01`, `pve-nuc12-01`):
 
 ```bash
 # Lower swappiness temporarily

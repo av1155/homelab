@@ -22,6 +22,8 @@ This project is my **personal lab** and represents the real-world DevOps/SRE ski
   Step-by-step HA cluster config: kube-vip, MetalLB, Longhorn, backups, Prometheus/Grafana, Argo CD.
 - [**Homelab Inventory & Cloud Cost Comparison**](./homelab_inventory.md)  
   Hardware, one-time spend, AWS-equivalent monthly cost, and 3-year savings.
+- [**DevOps Roadmap**](./ROADMAP.md)  
+  Phased plan from baseline safety → Packer → Terraform → Ansible → Vault → full IaC.
 
 ---
 
@@ -238,15 +240,18 @@ Here’s a quick overview (full configs in [`stacks/`](stacks/)):
 
 ---
 
-## Planned Additions
-
-- **Infrastructure as Code** – Terraform modules and Ansible playbooks for Proxmox and AWS
-
----
-
 ## Repo Structure
 
-```bash
+```text
+ansible/             # (planned) Ansible roles and playbooks — Phase 3
+docs/
+  ├── adr/           # Architecture Decision Records — Phase 8
+  ├── proxmox/       # Proxmox operational notes and runbooks
+  ├── runbooks/      # Stack rollback and operational runbooks — Phase 0
+  └── sre/           # SLOs, DR drills, incident reports — Phase 7
+infra-templates/     # Reusable Compose templates (agent stacks, Tdarr nodes)
+kubernetes/          # K8s manifests (kube-vip, MetalLB, Longhorn, Argo CD, monitoring)
+packer/              # (planned) Proxmox base image templates — Phase 1
 stacks/
   ├── dns/               # DNS stack
   ├── homepage/          # Dashboard
@@ -262,6 +267,7 @@ stacks/
   ├── utilities/         # Monitoring & tools
   ├── vaultwarden/       # Secrets vault + backup
   └── wireguard/         # VPN
+terraform/           # (planned) Terraform modules for Proxmox provisioning — Phase 2
 ```
 
 Most stack directories include:
