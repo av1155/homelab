@@ -189,8 +189,7 @@ services:
     flaresolverr:
         image: 21hsmw/flaresolverr:nodriver
         container_name: flaresolverr
-        ports:
-            - "${PORT:-8191}:8191"
+        network_mode: "container:gluetun"
         environment:
             - TZ=America/New_York
             - PUID=0
