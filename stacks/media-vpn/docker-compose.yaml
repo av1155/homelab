@@ -27,7 +27,7 @@ services:
             - "6881:6881/udp" # Torrent UDP
             - "${FIREWALL_VPN_INPUT_PORTS}:${FIREWALL_VPN_INPUT_PORTS}" # AirVPN TCP
             - "${FIREWALL_VPN_INPUT_PORTS}:${FIREWALL_VPN_INPUT_PORTS}/udp" # AirVPN UDP
-            - "8191:8191" # FlareSolverr
+            - "8191:8191" # Byparr
             - "9696:9696" # Prowlarr Web UI
         network_mode: bridge
         # labels:
@@ -77,15 +77,15 @@ services:
             - PUID=0
             - PGID=0
         volumes:
-            - /root/docker/media-stack/prowlarr/config:/config
+            - /root/docker/media-vpn-stack/prowlarr/config:/config
         depends_on:
             gluetun:
                 condition: service_healthy
         restart: unless-stopped
 
-    flaresolverr:
+    byparr:
         image: ghcr.io/thephaseless/byparr:latest
-        container_name: flaresolverr
+        container_name: byparr
         init: true
         network_mode: service:gluetun
         environment:
