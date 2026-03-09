@@ -186,22 +186,6 @@ services:
             retries: 3
         restart: unless-stopped
 
-    flaresolverr:
-        image: 21hsmw/flaresolverr:nodriver
-        container_name: flaresolverr
-        network_mode: "container:gluetun"
-        environment:
-            - TZ=America/New_York
-            - PUID=0
-            - PGID=0
-            - LOG_LEVEL=${LOG_LEVEL:-info}
-            - LOG_HTML=${LOG_HTML:-false}
-            - CAPTCHA_SOLVER=${CAPTCHA_SOLVER:-none}
-            - DRIVER=${DRIVER:-nodriver}
-        security_opt:
-            - no-new-privileges:true
-        restart: unless-stopped
-
     metube:
         image: ghcr.io/alexta69/metube:latest
         container_name: metube
