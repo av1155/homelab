@@ -1,16 +1,4 @@
 services:
-    prowlarr:
-        image: ghcr.io/linuxserver/prowlarr:latest
-        container_name: prowlarr
-        network_mode: host
-        environment:
-            - TZ=America/New_York
-            - PUID=0
-            - PGID=0
-        volumes:
-            - /root/docker/media-stack/prowlarr/config:/config
-        restart: unless-stopped
-
     radarr:
         image: ghcr.io/linuxserver/radarr:latest
         container_name: radarr

@@ -28,6 +28,7 @@ services:
             - "${FIREWALL_VPN_INPUT_PORTS}:${FIREWALL_VPN_INPUT_PORTS}" # AirVPN TCP
             - "${FIREWALL_VPN_INPUT_PORTS}:${FIREWALL_VPN_INPUT_PORTS}/udp" # AirVPN UDP
             - "8191:8191" # FlareSolverr
+            - "9696:9696" # Prowlarr Web UI
         network_mode: bridge
         # labels:
         # - com.centurylinklabs.watchtower.enable=false
@@ -66,6 +67,21 @@ services:
             timeout: 10s
             retries: 3
             start_period: 20s
+
+    prowlarr:
+        image: ghcr.io/linuxserver/prowlarr:latest
+        container_name: prowlarr
+        network_mode: service:gluetun
+        environment:
+            - TZ=America/New_York
+            - PUID=0
+            - PGID=0
+        volumes:
+            - /root/docker/media-stack/prowlarr/config:/config
+        depends_on:
+            gluetun:
+                condition: service_healthy
+        restart: unless-stopped
 
     flaresolverr:
         image: ghcr.io/thephaseless/byparr:latest
