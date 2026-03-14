@@ -224,3 +224,16 @@ services:
             - /mnt/nas-media/Audiobooks:/audiobooks
             - /mnt/nas-media/Downloads:/downloads
         restart: unless-stopped
+
+    houndarr:
+        image: ghcr.io/av1155/houndarr:latest
+        container_name: houndarr
+        ports:
+            - "8877:8877"
+        environment:
+            - TZ=America/New_York
+            - PUID=0
+            - PGID=0
+        volumes:
+            - /root/docker/media-stack/houndarr/data:/data
+        restart: unless-stopped
