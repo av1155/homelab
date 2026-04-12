@@ -30,8 +30,8 @@ services:
             - "8191:8191" # Byparr
             - "9696:9696" # Prowlarr Web UI
         network_mode: bridge
-        # labels:
-        # - com.centurylinklabs.watchtower.enable=false
+        labels:
+            - com.centurylinklabs.watchtower.enable=false
         security_opt:
             - no-new-privileges:true
         volumes:
