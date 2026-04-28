@@ -638,8 +638,8 @@ jobs:
                   path: ~/.cache/trivy
                   key: trivy-db-${{ runner.os }}-W${{ env.CACHE_EPOCH }}-v1
 
-            # --- Keep only the latest 4 weekly caches per OS ---
-            - name: Prune old Trivy caches (keep last 4)
+            # --- Keep only the latest N caches per prefix ---
+            - name: Prune old Actions caches
               if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') }}
               env:
                   GH_TOKEN: ${{ github.token }}
@@ -664,27 +664,28 @@ jobs:
                   gh extension install actions/gh-actions-cache || true
 
                   REPO="${GITHUB_REPOSITORY}"
-                  PREFIX="trivy-db-${RUNNER_OS}-"
 
-                  # List cache keys, filter by prefix, sort descending (newest first)
-                  keys=$(gh actions-cache list -R "$REPO" \
-                    | awk '{print $1}' \
-                    | grep -E "^${PREFIX}" \
-                    | sort -r || true)
+                  prune_prefix() {
+                    local prefix="$1" keep="$2"
+                    local keys to_delete
+                    keys=$(gh actions-cache list -R "$REPO" \
+                      | awk '{print $1}' \
+                      | grep -E "^${prefix}" \
+                      | sort -r || true)
+                    to_delete=$(printf "%s\n" "$keys" | awk 'NF' | tail -n +"$((keep+1))" || true)
+                    if [[ -n "${to_delete}" ]]; then
+                      echo "Pruning old caches for '${prefix}' (keeping newest ${keep}):"
+                      printf "%s\n" "${to_delete}" | while read -r k; do
+                        echo " - $k"
+                        gh actions-cache delete "$k" -R "$REPO" --confirm || true
+                      done
+                    else
+                      echo "No old caches to prune for '${prefix}' (have ≤ ${keep})."
+                    fi
+                  }
 
-                  keep=4
-                  # Delete all but the newest $keep
-                  to_delete=$(printf "%s\n" "$keys" | awk 'NF' | tail -n +"$((keep+1))" || true)
-
-                  if [[ -n "${to_delete}" ]]; then
-                    echo "Pruning old Trivy caches:"
-                    printf "%s\n" "${to_delete}" | while read -r k; do
-                      echo " - $k"
-                      gh actions-cache delete "$k" -R "$REPO" --confirm || true
-                    done
-                  else
-                    echo "No old Trivy caches to prune (have ≤ ${keep})."
-                  fi
+                  prune_prefix "trivy-db-${RUNNER_OS}-" 4
+                  prune_prefix "broken-stacks-" 1
 
             - name: Summary
               if: always()
