@@ -666,11 +666,11 @@ jobs:
                   REPO="${GITHUB_REPOSITORY}"
                   PREFIX="trivy-db-${RUNNER_OS}-"
 
-                  # List cache keys, filter by prefix, sort ascending (oldest first)
+                  # List cache keys, filter by prefix, sort descending (newest first)
                   keys=$(gh actions-cache list -R "$REPO" \
                     | awk '{print $1}' \
                     | grep -E "^${PREFIX}" \
-                    | sort || true)
+                    | sort -r || true)
 
                   keep=4
                   # Delete all but the newest $keep
