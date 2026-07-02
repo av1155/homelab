@@ -42,7 +42,7 @@ services:
         restart: unless-stopped
 
     profilarr:
-        image: santiagosayshey/profilarr:latest
+        image: ghcr.io/dictionarry-hub/profilarr:latest
         container_name: profilarr
         ports:
             - "6868:6868"
