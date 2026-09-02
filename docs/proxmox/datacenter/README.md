@@ -498,7 +498,7 @@ Full task log: `cat /var/log/pve/tasks/*/<UPID>`
 
 **Findings:**
 
-- `irq 16: nobody cared` (i2c_i801 + snd_hda_codec) on every 7.0.14 boot, absent on the stable boot
+- `irq 16: nobody cared` (i2c_i801 + snd_hda_codec) on every boot with BIOS 0043; gone since BIOS 0058
 - pstore empty, journal ends abruptly → no panic recorded
 - BIOS was 0043 (2022). Drives, RAM, idle temps fine
 - Power brick: JUYOON 120 W (same model as NUC 12)
@@ -508,7 +508,6 @@ Full task log: `cat /var/log/pve/tasks/*/<UPID>`
 
 - BIOS 0058 (microcode 0x9A → 0xBC, ME 15.0.35 → 15.0.52)
 - Kernel 7.0.14-14
-- `/etc/modprobe.d/blacklist-irq16.conf`: `blacklist snd_hda_intel`, `blacklist i2c_i801` → IRQ 16 storm gone
 - After Power Failure = Power On, Fan = Cool
 
 **Rule:** no crash by **2026-10-24** → fixed. Crash before → move RAM + 990 Pro + 870 EVO into a barebones replacement.
