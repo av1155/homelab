@@ -143,38 +143,38 @@ services:
             - no-new-privileges:true
         restart: unless-stopped
 
-    # tdarr:
-    #     image: ghcr.io/haveagitgat/tdarr:latest
-    #     container_name: tdarr
-    #     network_mode: host
-    #     devices:
-    #         - /dev/dri:/dev/dri
-    #     environment:
-    #         - TZ=America/New_York
-    #         - PUID=0
-    #         - PGID=0
-    #         - UMASK_SET=002
-    #         - serverIP=0.0.0.0
-    #         - serverPort=8266
-    #         - webUIPort=8265
-    #         - serverURL=${TDARR_SERVER_URL}
-    #         - internalNode=true
-    #         - priority=0
-    #         - inContainer=true
-    #         - ffmpegVersion=7
-    #         - nodeName=internal-node
-    #         - auth=true
-    #         - apiKey=${TDARR_NODE_KEY} # Generated from Tools -> API Keys after creating a user and signing in
-    #         - openBrowser=false
-    #         - maxLogSizeMB=10
-    #         - cronPluginUpdate=0 0 * * *
-    #     volumes:
-    #         - /root/docker/media-stack/tdarr/server:/app/server
-    #         - /root/docker/media-stack/tdarr/configs:/app/configs
-    #         - /root/docker/media-stack/tdarr/logs:/app/logs
-    #         - /mnt/nas-media:/media
-    #         - /mnt/tdarr-cache:/temp
-    #     restart: unless-stopped
+    tdarr:
+        image: ghcr.io/haveagitgat/tdarr:latest
+        container_name: tdarr
+        network_mode: host
+        devices:
+            - /dev/dri:/dev/dri
+        environment:
+            - TZ=America/New_York
+            - PUID=0
+            - PGID=0
+            - UMASK_SET=002
+            - serverIP=0.0.0.0
+            - serverPort=8266
+            - webUIPort=8265
+            - serverURL=${TDARR_SERVER_URL}
+            - internalNode=true
+            - priority=0
+            - inContainer=true
+            - ffmpegVersion=7
+            - nodeName=internal-node
+            - auth=true
+            - apiKey=${TDARR_NODE_KEY} # Generated from Tools -> API Keys after creating a user and signing in
+            - openBrowser=false
+            - maxLogSizeMB=10
+            - cronPluginUpdate=0 0 * * *
+        volumes:
+            - /root/docker/media-stack/tdarr/server:/app/server
+            - /root/docker/media-stack/tdarr/configs:/app/configs
+            - /root/docker/media-stack/tdarr/logs:/app/logs
+            - /mnt/nas-media:/media
+            - /mnt/tdarr-cache:/temp
+        restart: unless-stopped
 
     cleanuparr:
         image: ghcr.io/cleanuparr/cleanuparr:latest
